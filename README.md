@@ -27,4 +27,4 @@ So installing on consoles that ship that version won't be allowed and you will n
   [TMFH](https://github.com/JeffRuLz/TMFH)/[NTM](https://github.com/Epicpkmn11/NTM)
   (what this is project used as base for menus)
 - [rvtr](https://github.com/rvtr):
-   Adding support for installing to dev/proto consoles and the ( ͡° ͜ʖ ͡°) icon
+   Adding support for installing to dev/proto consoles
