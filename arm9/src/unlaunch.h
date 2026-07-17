@@ -5,11 +5,11 @@
 
 #include "consoleInfo.h"
 
-typedef enum UNLAUNCH_VERSION {
-	v2_0,
-	CUSTOM,
+typedef enum ASTRONAUT_VERSION {
+	ASTRONAUT_INDEV,
+	ASTRONAUT_0_1_0,
 	INVALID,
-} UNLAUNCH_VERSION;
+} ASTRONAUT_VERSION;
 
 struct unlaunchInstallOptions {
 	bool noLauncherPatches;
@@ -20,12 +20,12 @@ struct unlaunchInstallOptions {
 
 static constexpr auto MAX_GIF_SIZE = 0x3C70;
 
-const char* getUnlaunchVersionString(UNLAUNCH_VERSION);
+const char* getAstronautVersionString(ASTRONAUT_VERSION);
 
-bool uninstallUnlaunch(const consoleInfo& info, bool removeHNAABackup);
-bool installUnlaunch(const consoleInfo& info, const unlaunchInstallOptions& options);
+bool uninstallAstronaut(const consoleInfo& info, bool removeHNAABackup);
+bool installAstronaut(const consoleInfo& info, bool disableAllPatches, const char* splashSoundBinaryPatchPath, std::span<uint8_t> customBackground);
 
-UNLAUNCH_VERSION loadUnlaunchInstaller(std::string_view path);
-UNLAUNCH_VERSION loadUnlaunchLikeHomebrew(std::string_view path);
+ASTRONAUT_VERSION loadAstronaut(std::string_view path);
+ASTRONAUT_VERSION loadUnlaunchLikeHomebrew(std::string_view path);
 
 #endif

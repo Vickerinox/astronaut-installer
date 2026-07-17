@@ -14,7 +14,7 @@ struct consoleInfo {
 	bool tmdInvalid{false};
 	bool tmdFound{true};
 	bool tmdGood{false};
-	bool UnlaunchHNAAtmdFound{false};
+	bool ModdedHNAAtmdFound{false};
 	bool needsNocashFooterToBeWritten{false};
 	uint32_t launcherVersion{0};
 	std::string launcherTmdPath;
@@ -24,7 +24,7 @@ struct consoleInfo {
 	NocashFooter nocashFooter;
 	bool isStockTmd() const {
 		if(!isRetail) {
-			return !UnlaunchHNAAtmdFound;
+			return !ModdedHNAAtmdFound;
 		}
 		return tmdGood;
 	}
