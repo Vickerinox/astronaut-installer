@@ -8,10 +8,10 @@ BLOCKSDSEXT	?= /opt/blocksds/external
 # User config
 # ===========
 
-NAME		:= unlaunch-installer
+NAME		:= astronaut-installer
 
-GAME_TITLE	:= Safe Unlaunch installer
-GAME_AUTHOR	:= edo9300
+GAME_TITLE	:= Safe astronaut installer
+GAME_AUTHOR	:= edo9300, fork by vikrinox
 GAME_ICON	:= icon.bmp
 
 GAME_CODE		:= UNLI

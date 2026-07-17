@@ -8,7 +8,7 @@
 #include <filesystem.h>
 #include <nds/arm9/dldi.h>
 
-#include "bgMenu.h"
+
 #include "consoleInfo.h"
 #include "main.h"
 #include "menu.h"
@@ -24,8 +24,8 @@ using namespace std::string_view_literals;
 volatile bool programEnd = false;
 static volatile bool arm7Exiting = false;
 static bool retailLauncherTmdPresentAndToBePatched = true;
-static UNLAUNCH_VERSION foundUnlaunchInstallerVersion = INVALID;
-static bool disableAllPatches = false;
+static ASTRONAUT_VERSION foundAstronautVersion = INVALID;
+static bool disableAllPatches = true;
 static bool enableSoundAndSplash = false;
 static const char* splashSoundBinaryPatchPath = NULL;
 static std::span<uint8_t> customBgSpan{};
@@ -68,14 +68,11 @@ static constexpr std::array knownStage2s{
 };
 
 enum {
-	MAIN_MENU_SAFE_UNLAUNCH_UNINSTALL,
-	MAIN_MENU_CUSTOM_BG,
-	MAIN_MENU_SOUND_SPLASH_PATCHES,
-	MAIN_MENU_SAFE_UNLAUNCH_INSTALL,
+	MAIN_MENU_SAFE_UNINSTALL,
+	MAIN_MENU_SAFE_INSTALL,
 	MAIN_MENU_EXIT,
-	MAIN_MENU_SAFE_UNLAUNCH_UNINSTALL_NO_BACKUP,
+	MAIN_MENU_SAFE_UNINSTALL_NO_BACKUP,
 	MAIN_MENU_WRITE_NOCASH_FOOTER_ONLY,
-	MAIN_MENU_TID_PATCHES,
 };
 
 static void setupScreens()
@@ -101,11 +98,10 @@ static void setupScreens()
 
 static int mainMenu(const consoleInfo& info, int cursor)
 {
-	const auto isInstallingRealUnlaunch = (foundUnlaunchInstallerVersion == v2_0) && isLauncherVersionSupported;
 	//top screen
 	clearScreen(&topScreen);
 
-	printf("\t\"Safe\" unlaunch installer\n");
+	printf("\t\"Safe\" astronaut installer\n");
 	printf("\nversion %s\n", VERSION);
 	printf("\n\n\x1B[41mWARNING:\x1B[47m This tool can write to"
 			"\nyour internal NAND!"
@@ -113,7 +109,7 @@ static int mainMenu(const consoleInfo& info, int cursor)
 			"\nlow, of \x1B[41mbricking\x1B[47m your system"
 			"\nand should be done with caution!\n");
 	printf("\n\t  \x1B[46mhttps://dsi.cfw.guide\x1B[47m\n");
-	printf("\x1b[23;0Hedo9300 - 2025");
+	printf("\x1b[23;0Hedo9300, fork by vikrinox - 2026");
 
 	//menu
 	Menu* m = newMenu();
@@ -123,26 +119,20 @@ static int mainMenu(const consoleInfo& info, int cursor)
 		if(info.tmdInvalid) {
 			return std::make_pair("Restore launcher tmd", "Restore launcher tmd no backup");
 		}
-		return std::make_pair("Uninstall unlaunch", "Uninstall unlaunch no backup");
+		return std::make_pair("Uninstall astronaut", "Uninstall astronaut no backup");
 	}();
 
-	char soundPatchesStr[64], tidPatchesStr[32], installUnlaunchStr[32];
-	sprintf(tidPatchesStr, "Disable all patches: %s",
-						disableAllPatches ? "On" : "Off");
-	sprintf(soundPatchesStr, "Enable sound and splash: %s",
-							enableSoundAndSplash ? "On" : "Off");
-	if(foundUnlaunchInstallerVersion != INVALID)
+	char installAstronautStr[32];
+	if(foundAstronautVersion != INVALID)
 	{
-		sprintf(installUnlaunchStr, "Install unlaunch (%s)", getUnlaunchVersionString(foundUnlaunchInstallerVersion));
+		sprintf(installAstronautStr, "Install astronaut (%s)", getAstronautVersionString(foundAstronautVersion));
 	}
 	else
 	{
-		strcpy(installUnlaunchStr, "Install unlaunch");
+		strcpy(installAstronautStr, "Install astronaut");
 	}
 	addMenuItem(m, restore_string, NULL, !info.isStockTmd() && isLauncherVersionSupported, false);
-	addMenuItem(m, "Custom background", NULL, isInstallingRealUnlaunch, true);
-	addMenuItem(m, soundPatchesStr, NULL, isInstallingRealUnlaunch && !disableAllPatches && splashSoundBinaryPatchPath != NULL, false);
-	addMenuItem(m, installUnlaunchStr, NULL, foundUnlaunchInstallerVersion != INVALID && info.isStockTmd() && isLauncherVersionSupported, false);
+	addMenuItem(m, installAstronautStr, NULL, foundAstronautVersion != INVALID && info.isStockTmd() && isLauncherVersionSupported, false);
 	addMenuItem(m, "Exit", NULL, true, false);
 	if(!isLauncherVersionSupported)
 	{
@@ -152,7 +142,6 @@ static int mainMenu(const consoleInfo& info, int cursor)
 	{
 		addMenuItem(m, restore_string_no_backup, NULL, !info.isStockTmd(), false);
 		addMenuItem(m, "Write nocash footer", NULL, info.needsNocashFooterToBeWritten, false);
-		addMenuItem(m, tidPatchesStr, NULL, isInstallingRealUnlaunch, false);
 	}
 
 	m->cursor = cursor;
@@ -200,7 +189,6 @@ static int mainMenu(const consoleInfo& info, int cursor)
 				addMenuItem(m, restore_string_no_backup, NULL, !info.isStockTmd(), false);
 			}
 			addMenuItem(m, "Write nocash footer", NULL, info.needsNocashFooterToBeWritten, false);
-			addMenuItem(m, tidPatchesStr, NULL, isInstallingRealUnlaunch, false);
 		}
 	}
 
@@ -253,22 +241,10 @@ void setup() {
 	{
 		messageBox("\x1B[41mWARNING:\x1B[47m This SD is not\n"
 				   "formatted as MBR, required by\n"
-				   "Unlaunch to work.\n"
+				   "Unlaunch/Astronaut to work.\n"
 				   "If you install it, Unlaunch\n"
 				   "won't boot as long as this SD\n"
 				   "card is inserted.");
-	}
-
-	u32 clusterSize = getClusterSizeForPartition("sd:/");
-	if(clusterSize > 32768)
-	{
-		messageBox(std::format("\x1B[41mWARNING:\x1B[47m This SD card cluster\n"
-							   "size is currently {}KB,\n"
-							   "which is too large for Unlaunch\n"
-							   "to work.\n"
-							   "If you install it, Unlaunch\n"
-							   "won't boot as long as this SD\n"
-							   "card is inserted.", clusterSize / 1024).data());
 	}
 }
 
@@ -279,7 +255,7 @@ void checkStage2Supported() {
 		if(sha == digest) {
 			if(!unlaunch) {
 				messageBox("\x1B[31mError:\x1B[33m A known stage2 was found but is not compatible with\n"
-						   "unlaunch.");
+						   "astronaut.");
 				exit(0);
 			}
 			return;
@@ -361,44 +337,29 @@ void waitForBatteryChargedEnough() {
 	}
 }
 
-void loadUnlaunchInstaller() {
-	if(fileExists("sd:/not-unlaunch.dsi"))
+void loadAstronaut() {
+	if (fileExists("sd:/astronaut"))
 	{
-		foundUnlaunchInstallerVersion = loadUnlaunchLikeHomebrew("sd:/not-unlaunch.dsi");
-		if(foundUnlaunchInstallerVersion != INVALID)
-			return;
-	}
-	if (fileExists("sd:/unlaunch.dsi"))
-	{
-		foundUnlaunchInstallerVersion = loadUnlaunchInstaller("sd:/unlaunch.dsi");
-		if(foundUnlaunchInstallerVersion != INVALID)
+		foundAstronautVersion = loadAstronaut("sd:/astronaut.bin");
+		if(foundAstronautVersion != INVALID)
 			return;
 
-		messageBox("\x1B[41mWARNING:\x1B[47m Failed to load unlaunch.dsi\n"
+		messageBox("\x1B[41mWARNING:\x1B[47m Failed to load astronaut\n"
 				   "from the root of the sd card.\n"
 				   "Attempting to use the bundled one.");
 	}
 
-	foundUnlaunchInstallerVersion = loadUnlaunchInstaller("nitro:/UNLAUNCH.DSI");
+	foundAstronautVersion = loadAstronaut("nitro:/astronaut.bin");
 
-	if(foundUnlaunchInstallerVersion != INVALID)
+	if(foundAstronautVersion != INVALID)
 		return;
 
-	messageBox("\x1B[41mWARNING:\x1B[47m Failed to load bundled unlaunch\n"
+	messageBox("\x1B[41mWARNING:\x1B[47m Failed to load bundled astronaut\n"
 			   "installer.\n"
-			   "Installing unlaunch won't be possible.");
+			   "Installing astronaut won't be possible.");
 }
 
-void loadUnlaunchInstallerPatch() {
-	if (fileExists("sd:/sound-and-splash-patch.bin")) {
-		splashSoundBinaryPatchPath = "sd:/sound-and-splash-patch.bin";
-	} else if(fileExists("nitro:/sound-and-splash-patch.bin")) {
-		splashSoundBinaryPatchPath = "nitro:/sound-and-splash-patch.bin";
-	}
-	if(!fileExists("nitro:/fix-devicelist-patch.bin")) {
-		throw std::runtime_error(std::format("Failed to find device list patch ({})", "nitro:/fix-devicelist-patch.bin"));
-	}
-}
+
 
 void parseLauncherInfo(std::string_view launcher_tid_str, consoleInfo& info) {
 	auto launcher_content_path = std::format("nand:/title/00030017/{}/content", launcher_tid_str);
@@ -569,7 +530,7 @@ void retrieveInstalledLauncherInfo(consoleInfo& info) {
 	}
 
 	if (auto tmdSize = getFileSizePath(hnaaTmdPath.data()); tmdSize > 520) {
-		info.UnlaunchHNAAtmdFound = true;
+		info.ModdedHNAAtmdFound = true;
 	}
 }
 
@@ -589,13 +550,13 @@ void uninstall(consoleInfo& info, bool noBackup) {
 		return;
 	}
 	nand_WriteProtect(false);
-	if(uninstallUnlaunch(info, unsafeUninstall))
+	if(uninstallAstronaut(info, unsafeUninstall))
 	{
 		messageBox("Uninstall successful!\n");
 		info.tmdInvalid = false;
 		info.tmdPatched = false;
 		info.tmdGood = true;
-		info.UnlaunchHNAAtmdFound = !unsafeUninstall;
+		info.ModdedHNAAtmdFound = !unsafeUninstall;
 		fatTouched = true;
 	}
 	else
@@ -614,11 +575,11 @@ void install(consoleInfo& info) {
 	{
 		return;
 	}
-	if(foundUnlaunchInstallerVersion == INVALID)
+	if(foundAstronautVersion == INVALID)
 	{
 		return;
 	}
-	if(choiceBox("Install unlaunch?") == NO)
+	if(choiceBox("Install astronaut?") == NO)
 	{
 		return;
 	}
@@ -635,14 +596,14 @@ void install(consoleInfo& info) {
 		return;
 	}
 	nand_WriteProtect(false);
-	if(installUnlaunch(info, disableAllPatches,
+	if(installAstronaut(info, disableAllPatches,
 						enableSoundAndSplash ? splashSoundBinaryPatchPath : NULL,
 						customBgSpan))
 	{
 		messageBox("Install successful!\n");
 		info.tmdGood = false;
 		info.tmdPatched = true;
-		info.UnlaunchHNAAtmdFound = true;
+		info.ModdedHNAAtmdFound = true;
 		fatTouched = true;
 	}
 	else
@@ -652,18 +613,7 @@ void install(consoleInfo& info) {
 	nand_WriteProtect(true);
 }
 
-void customBg() {
-	if(!isLauncherVersionSupported)
-	{
-		return;
-	}
-	if(foundUnlaunchInstallerVersion == INVALID)
-	{
-		return;
-	}
-	if(auto newBg = backgroundMenu(); newBg.has_value())
-		customBgSpan = *newBg;
-}
+
 
 void doMainMenu(consoleInfo& info) {
 	int cursor = 0;
@@ -676,48 +626,14 @@ void doMainMenu(consoleInfo& info) {
 
 		switch (cursor)
 		{
-		case MAIN_MENU_SAFE_UNLAUNCH_UNINSTALL:
-		case MAIN_MENU_SAFE_UNLAUNCH_UNINSTALL_NO_BACKUP:
+		case MAIN_MENU_SAFE_UNINSTALL:
+		case MAIN_MENU_SAFE_UNINSTALL_NO_BACKUP:
 		{
-			uninstall(info, cursor == MAIN_MENU_SAFE_UNLAUNCH_UNINSTALL_NO_BACKUP);
+			uninstall(info, cursor == MAIN_MENU_SAFE_UNINSTALL_NO_BACKUP);
 		}
 		break;
 
-		case MAIN_MENU_CUSTOM_BG:
-		{
-			customBg();
-		}
-		break;
-
-		case MAIN_MENU_TID_PATCHES:
-			if(!advancedOptionsUnlocked)
-			{
-				break;
-			}
-			if(!isLauncherVersionSupported || foundUnlaunchInstallerVersion != v2_0)
-			{
-				break;
-			}
-			disableAllPatches = !disableAllPatches;
-			break;
-
-		case MAIN_MENU_SOUND_SPLASH_PATCHES:
-			if(!isLauncherVersionSupported || foundUnlaunchInstallerVersion != v2_0)
-			{
-				break;
-			}
-			if(disableAllPatches)
-			{
-				break;
-			}
-			if(splashSoundBinaryPatchPath == nullptr)
-			{
-				break;
-			}
-			enableSoundAndSplash = !enableSoundAndSplash;
-			break;
-
-		case MAIN_MENU_SAFE_UNLAUNCH_INSTALL:
+		case MAIN_MENU_SAFE_INSTALL:
 		{
 			install(info);
 		}
@@ -740,10 +656,9 @@ int main(int argc, char **argv)
 	checkStage2Supported();
 	setupNitrofs();
 
-	loadUnlaunchInstaller();
+	loadAstronaut();
 
 	try {
-		loadUnlaunchInstallerPatch();
 
 		consoleInfo info;
 

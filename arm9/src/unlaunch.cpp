@@ -13,46 +13,25 @@
 #include <memory>
 #include <format>
 
-static char unlaunchInstallerBuffer[0x30000];
-static char ogUnlaunchInstallerBuffer[0x30000];
+static char astronautBuffer[80880+520];
+static char ogAstronautBuffer[80880+520];
 static const char* hnaaTmdPath = "nand:/title/00030017/484e4141/content/title.tmd";
 static const char* hnaaBackupTmdPath = "nand:/title/00030017/484e4141/content/title.tmd.bak";
 
-UNLAUNCH_VERSION installerVersion{INVALID};
-size_t unlaunchInstallerSize{};
+ASTRONAUT_VERSION installerVersion{INVALID};
+size_t astronautSize{};
 
-constexpr std::array knownUnlaunchHashes{
-	/*"9e6a8d95062533dfc422362f99ff3e24e7de9920"_sha1, // v0.8: blacklisted, doesn't like this install method*/
-	/*"fb0d0ffebda67b786f608bf5cbcb2efee6ab42bb"_sha1, // v0.9: blacklisted, doesn't like this install method*/
-	/*"d710ff585e321082b33456dd4e0568200c9adcc7"_sha1, // v1.0: blacklisted, doesn't like this install method*/
-	/*"4f3e455e0a752d35a219a3ff10ba14a6c98bff13"_sha1, // v1.1: blacklisted, doesn't like this install method*/
-	/*"25db1a47ba84748f911d9f4357bfc417533121c7"_sha1, // v1.2: blacklisted, doesn't like this install method*/
-	/*"068f1d56da02bb4f93fb76d7874e14010c7e7a3d"_sha1, // v1.3: blacklisted, doesn't like this install method*/
-	/*"43197370de74d302ef7c4420059c3ca7d50c4f3d"_sha1, // v1.4: blacklisted, doesn't like this install method*/
-	/*"0525b28cc59b6f7fc00ad592aebadd7257bf7efb"_sha1, // v1.5: blacklisted, doesn't like this install method*/
-	/*"9470a51fde188235052b119f6bfabf6689cb2343"_sha1, // v1.6: blacklisted, doesn't like this install method*/
-	/*"672c11eb535b97b0d32ff580d314a2ad6411d5fe"_sha1, // v1.7: blacklisted, doesn't like this install method*/
-	/*"b76c2b1722e769c6c0b4b3d4bc73250e41993229"_sha1, // v1.8: blacklisted, the HNAA patch is only done for 2.0 */
-	/*"f3eb41cba136a3477523155f8b05df14917c55f4"_sha1, // v1.9: blacklisted, the HNAA patch is only done for 2.0 */
-	"15f4a36251d1408d71114019b2825fe8f5b4c8cc"_sha1, // v2.0
+constexpr std::array knownAstronautHashes{
+	"99454e7a84adc702247d1f93d165c7195e127378"_sha1, //first private astronaut pre-release
+	"797183356a5fc2b6a8cbce04e313fac39e4a6125"_sha1, //first public astronaut release
 };
 
-constexpr std::array gifOffsets{
-	/* std::make_pair(0x48d4, 0x8540),*/ /* 1.8 */
-	/* std::make_pair(0x48c8, 0x8534),*/ /* 1.9 */
-	std::make_pair(0x48f0, 0x855c), /* 2.0 */
-};
 
-constexpr std::array blockAllPatchesOffset{
-	/* 0xae74, */ /* 1.9 */
-	0xae91, /* 2.0 */
-};
+static bool writeAstronautToHNAAFolder();
 
-static bool writeUnlaunchToHNAAFolder();
-
-bool isValidUnlaunchInstallerSize(size_t size)
+bool isValidAstronautSize(size_t size)
 {
-	return size == 163320 /*1.8*/ || size == 196088 /*1.9, 2.0*/;
+	return size == 80880;
 }
 
 static bool removeHnaaLauncher()
@@ -61,20 +40,20 @@ static bool removeHnaaLauncher()
 		if(fileExists(hnaaTmdPath)) {
 			if(!toggleFileReadOnly(hnaaTmdPath, false))
 			{
-				return "\x1B[31mError:\x1B[33m Failed to mark unlaunch's title.tmd as writable\nLeaving as is\n";
+				return "\x1B[31mError:\x1B[33m Failed to mark astronauts's title.tmd as writable\nLeaving as is\n";
 			}
 			if(!removeIfExists(hnaaTmdPath))
 			{
-				return "\x1B[31mError:\x1B[33m Failed to delete ulnaunch's title.tmd\n";
+				return "\x1B[31mError:\x1B[33m Failed to delete astronauts's title.tmd\n";
 			}
 		}
 		if(!removeIfExists("nand:/title/00030017/484e4141/content"))
 		{
-			return std::format("\x1B[31mError:\x1B[33m Failed to delete ulnaunch's content folder: {}\n", errno);
+			return std::format("\x1B[31mError:\x1B[33m Failed to delete astronaut's content folder: {}\n", errno);
 		}
 		if(!removeIfExists("nand:/title/00030017/484e4141"))
 		{
-			return std::format("\x1B[31mError:\x1B[33m Failed to delete ulnaunch's 484e4141 folder: {}\n", errno);
+			return std::format("\x1B[31mError:\x1B[33m Failed to delete astronaut's 484e4141 folder: {}\n", errno);
 		}
 		return "";
 	}();
@@ -108,21 +87,21 @@ static bool restoreMainTmd(const consoleInfo& info, bool removeHNAABackup)
 		// and it wasn't patched with the new method
 		// Install the hnaa backup if not found and then truncate the tmd to 520b
 		// before restoring it
-		if(!info.UnlaunchHNAAtmdFound && !removeHNAABackup)
+		if(!info.ModdedHNAAtmdFound && !removeHNAABackup)
 		{
 			auto choiceString = [&]{
 				if(installerVersion != INVALID)
-					return "Unlaunch was installed with the\n"
+					return "Unlaunch/Astronaut was installed with the\n"
 							"legacy method.\n"
 							"Before uninstalling it, a\n"
 							"failsafe installation will be\n"
 							"created.\n"
 							"Proceed?";
-				return "Unlaunch was installed with the\n"
+				return "Unlaunch/Astronaut was installed with the\n"
 						"legacy method\n"
 						"But a failsafe installation\n"
 						"cannot be created since no valid\n"
-						"unlaunch installer was provided.\n"
+						"astronaut was provided.\n"
 						"Proceed anyways?";
 			}();
 			if(choiceBox(choiceString) == NO)
@@ -131,7 +110,7 @@ static bool restoreMainTmd(const consoleInfo& info, bool removeHNAABackup)
 			}
 			if(installerVersion != INVALID)
 			{
-				if(!writeUnlaunchToHNAAFolder())
+				if(!writeAstronautToHNAAFolder())
 				{
 					if(choiceBox("Failsafe installation couldn't\n"
 									"be copmleted.\n"
@@ -143,7 +122,7 @@ static bool restoreMainTmd(const consoleInfo& info, bool removeHNAABackup)
 			}
 		}
 		if (ftruncate(fileno(launcherTmd), 520) != 0) {
-			messageBox("\x1B[31mError:\x1B[33m Failed to remove unlaunch\n");
+			messageBox("\x1B[31mError:\x1B[33m Failed to remove stage2 mod\n");
 			return false;
 		}
 	}
@@ -156,11 +135,11 @@ static bool restoreMainTmd(const consoleInfo& info, bool removeHNAABackup)
 		fseek(launcherTmd, 0, SEEK_SET);
 		auto written = fwrite(info.recoveryTmdData.data(), info.recoveryTmdData.size(), 1, launcherTmd);
 		if(written != 1) {
-			messageBox("\x1B[31mError:\x1B[33m Failed to remove unlaunch\n");
+			messageBox("\x1B[31mError:\x1B[33m Failed to remove stage2 mod\n");
 			return false;
 		}
 	}
-	if(removeHNAABackup && info.UnlaunchHNAAtmdFound)
+	if(removeHNAABackup && info.ModdedHNAAtmdFound)
 	{
 		return removeHnaaLauncher();
 	}
@@ -201,7 +180,7 @@ static bool restoreProtoTmd(const char* path)
 {
 	if (!fileExists(hnaaBackupTmdPath))
 	{
-		messageBox("\x1B[31mError:\x1B[33m No original tmd found!\nCan't uninstall unlaunch.\n");
+		messageBox("\x1B[31mError:\x1B[33m No original tmd found!\nCan't uninstall stage2 mod.\n");
 		return false;
 	}
 	removeIfExists(path);
@@ -210,7 +189,7 @@ static bool restoreProtoTmd(const char* path)
 	return true;
 }
 
-bool uninstallUnlaunch(const consoleInfo& info, bool removeHNAABackup)
+bool uninstallAstronaut(const consoleInfo& info, bool removeHNAABackup)
 {
 	// TODO: handle retailLauncherTmdPresentAndToBePatched = false on retail consoles
 	if (info.isRetail) {
@@ -237,12 +216,12 @@ bool uninstallUnlaunch(const consoleInfo& info, bool removeHNAABackup)
 	return true;
 }
 
-static bool writeUnlaunchTmd(const char* path)
+static bool writeAstronautTmd(const char* path)
 {
 	static constexpr auto unlaunchShaOffset = 0x4000;
 	Sha1Digest expectedDigest, actualDigest;
-	swiSHA1Calc(expectedDigest.data(), unlaunchInstallerBuffer + unlaunchShaOffset,
-				(unlaunchInstallerSize + 520) - unlaunchShaOffset);
+	swiSHA1Calc(expectedDigest.data(), astronautBuffer + unlaunchShaOffset,
+				(astronautSize + 520) - unlaunchShaOffset);
 	if(calculateFileSha1PathOffset(path, actualDigest.data(), unlaunchShaOffset) && expectedDigest == actualDigest)
 	{
 		// the tmd hasn't changed, no need to do anything
@@ -252,15 +231,15 @@ static bool writeUnlaunchTmd(const char* path)
 	FILE* targetTmd = fopen(path, "wb");
 	if (!targetTmd)
 	{
-		messageBox("\x1B[31mError:\x1B[33m Failed to open target unlaunch tmd\n");
+		messageBox("\x1B[31mError:\x1B[33m Failed to open target astronaut tmd\n");
 		return false;
 	}
 
-	if(!writeToFile(targetTmd, unlaunchInstallerBuffer, unlaunchInstallerSize + 520))
+	if(!writeToFile(targetTmd, astronautBuffer, astronautSize + 520))
 	{
 		fclose(targetTmd);
 		removeIfExists(path);
-		messageBox("\x1B[31mError:\x1B[33m Failed write unlaunch to tmd\n");
+		messageBox("\x1B[31mError:\x1B[33m Failed write astronaut to tmd\n");
 		return false;
 	}
 
@@ -269,13 +248,13 @@ static bool writeUnlaunchTmd(const char* path)
 	if(!calculateFileSha1PathOffset(path, actualDigest.data(), unlaunchShaOffset) || expectedDigest != actualDigest)
 	{
 		removeIfExists(path);
-		messageBox("\x1B[31mError:\x1B[33m Unlaunch tmd was not properly written\n");
+		messageBox("\x1B[31mError:\x1B[33m Astronaut tmd was not properly written\n");
 		return false;
 	}
 	return true;
 }
 
-static bool writeUnlaunchToHNAAFolder()
+static bool writeAstronautToHNAAFolder()
 {
 	//Create HNAA launcher folder
 	if (!safeCreateDir("nand:/title/00030017")
@@ -289,7 +268,7 @@ static bool writeUnlaunchToHNAAFolder()
 		messageBox("\x1B[31mError:\x1B[33m Can't remove launcher tmd write protect\n");
 		return false;
 	}
-	if (!writeUnlaunchTmd(hnaaTmdPath))
+	if (!writeAstronautTmd(hnaaTmdPath))
 	{
 		removeHnaaLauncher();
 		return false;
@@ -298,16 +277,16 @@ static bool writeUnlaunchToHNAAFolder()
 	//Mark the tmd as readonly
 	if(!toggleFileReadOnly(hnaaTmdPath, true))
 	{
-		messageBox("\x1B[31mError:\x1B[33m Failed to mark unlaunch's title.tmd as read only\n");
+		messageBox("\x1B[31mError:\x1B[33m Failed to mark astronaut's title.tmd as read only\n");
 		removeHnaaLauncher();
 		return false;
 	}
 	return true;
 }
 
-static bool installUnlaunchRetailConsole(const consoleInfo& info)
+static bool installAstronautRetailConsole(const consoleInfo& info)
 {
-	if(!writeUnlaunchToHNAAFolder())
+	if(!writeAstronautToHNAAFolder())
 		return false;
 
 	//Finally patch the default launcher tmd to be invalid
@@ -329,10 +308,10 @@ static bool installUnlaunchRetailConsole(const consoleInfo& info)
 	return true;
 }
 
-static bool installUnlaunchProtoConsole(void)
+static bool installAstronautProtoConsole(void)
 {
 	if(choiceBox("Your DSi has a non-standard\nregion.\n"
-				"\x1B[31mInstalling unlaunch may be\n"
+				"\x1B[31mInstalling astronaut may be\n"
 				"unsafe.\x1B[33m"
 				"\nCancelling is recommended!"
 				"\n\nContinue anyways?") == NO)
@@ -359,7 +338,7 @@ static bool installUnlaunchProtoConsole(void)
 		toggleFileReadOnly("nand:/title/00030017/484e4141/content/title.tmd.bak", true);
 	}
 
-	if(!writeUnlaunchTmd(hnaaTmdPath))
+	if(!writeAstronautTmd(hnaaTmdPath))
 	{
 		copyFile("nand:/title/00030017/484e4141/content/title.tmd.bak", hnaaTmdPath);
 		return false;
@@ -374,205 +353,85 @@ static bool installUnlaunchProtoConsole(void)
 	return true;
 }
 
-static bool readUnlaunchInstaller(std::string_view path)
+static bool readAstronautInstaller(std::string_view path)
 {
-	FILE* unlaunchInstaller = fopen(path.data(), "rb");
-	if (!unlaunchInstaller)
+	FILE* astronaut = fopen(path.data(), "rb");
+	if (!astronaut)
 	{
-		messageBox("\x1B[31mError:\x1B[33m Failed to open unlaunch installer\n");
+		messageBox("\x1B[31mError:\x1B[33m Failed to open astronaut file\n");
 		return false;
 	}
 
-	unlaunchInstallerSize = getFileSize(unlaunchInstaller);
-	if(!isValidUnlaunchInstallerSize(unlaunchInstallerSize))
+	astronautSize = getFileSize(astronaut);
+	if(!isValidAstronautSize(astronautSize))
 	{
-		messageBox("\x1B[31mError:\x1B[33m Unlaunch installer wrong file size\n");
+		messageBox("\x1B[31mError:\x1B[33m Astronaut file is wrong size\n");
 		return false;
 	}
 
 	// Pad the installer with 520 bytes, those being the size of a valid tmd
-	auto readAmount = readFileAll(unlaunchInstaller, unlaunchInstallerBuffer + 520, sizeof(unlaunchInstallerBuffer) - 520);
+	auto readAmount = readFileAll(astronaut, astronautBuffer + 520, sizeof(astronautBuffer) - 520);
 
-	fclose(unlaunchInstaller);
+	fclose(astronaut);
 
-	if(readAmount != unlaunchInstallerSize)
+	if(readAmount != astronautSize)
 	{
-		messageBox("\x1B[31mError:\x1B[33m Failed read unlaunch installer\n");
+		messageBox("\x1B[31mError:\x1B[33m Failed to read astronaut file\n");
 		return false;
 	}
 	return true;
 }
 
-static bool verifyUnlaunchInstaller(void)
+static bool verifyAstronaut(void)
 {
 	Sha1Digest digest;
-	swiSHA1Calc(digest.data(), unlaunchInstallerBuffer + 520,  unlaunchInstallerSize);
-	auto it = std::ranges::find(knownUnlaunchHashes, digest);
-	if(it == knownUnlaunchHashes.end())
+	swiSHA1Calc(digest.data(), astronautBuffer + 520,  astronautSize);
+	auto it = std::ranges::find(knownAstronautHashes, digest);
+	if(it == knownAstronautHashes.end())
 	{
-		messageBox("\x1B[31mError:\x1B[33m Provided unlaunch installer has an unknown hash\n");
+		messageBox("\x1B[31mError:\x1B[33m Provided astronaut has an unknown hash\n");
 		return false;
 	}
-	auto idx = std::distance(knownUnlaunchHashes.begin(), it);
-	installerVersion = static_cast<UNLAUNCH_VERSION>(idx);
+	auto idx = std::distance(knownAstronautHashes.begin(), it);
+	installerVersion = static_cast<ASTRONAUT_VERSION>(idx);
 	return true;
 }
 
-static bool patchCustomBackground(std::span<uint8_t> customBackground)
+
+
+ASTRONAUT_VERSION loadAstronaut(std::string_view path)
 {
-	auto size = customBackground.size();
-	if(size == 0)
+	if(readAstronautInstaller(path) && verifyAstronaut())
 	{
-		return true;
-	}
-	if(size < 7 || size > MAX_GIF_SIZE)
-	{
-		messageBox("\x1B[31mError:\x1B[33m Gif file too big.\n");
-		return false;
-	}
-
-	const u32 gifSignatureStart = 0x38464947;
-	const u32 gifSignatureEnd = 0x3B000044;
-
-	auto [gifOffsetStart, gifOffsetEnd] = gifOffsets[installerVersion];
-
-	auto* gifStart = reinterpret_cast<uint32_t*>((unlaunchInstallerBuffer + 520) + gifOffsetStart);
-	auto* gifEnd = reinterpret_cast<uint32_t*>((unlaunchInstallerBuffer + 520) + gifOffsetEnd);
-
-	if(*gifStart != gifSignatureStart || *gifEnd != gifSignatureEnd)
-	{
-		messageBox("\x1B[31mError:\x1B[33m Gif offsets not matching.\n");
-		return false;
-	}
-
-
-	std::memcpy(gifStart, customBackground.data(), size);
-
-	return true;
-}
-
-static bool applyBinaryPatch(const char* path)
-{
-	static constexpr auto lzssCompressedBinaryOffset = 0x8580;
-	static constexpr auto lzssCompressedBinarySize = 0x67FD;
-	auto* patch = fopen(path, "rb");
-	if(!patch)
-	{
-		messageBox("\x1B[31mError:\x1B[33m Failed to open the patch.\n");
-		return false;
-	}
-	auto patchSize = getFileSize(patch);
-	if(patchSize > lzssCompressedBinarySize)
-	{
-		messageBox("\x1B[31mError:\x1B[33m Patch is too big.\n");
-		fclose(patch);
-		return false;
-	}
-	if (fread((unlaunchInstallerBuffer + 520) + lzssCompressedBinaryOffset, 1, patchSize, patch) != patchSize)
-	{
-		messageBox("\x1B[31mError:\x1B[33m Failed to read patch.\n");
-		fclose(patch);
-		return false;
-	}
-	fclose(patch);
-	return true;
-}
-
-static bool patchUnlaunchInstaller(bool disableAllPatches, const char* splashSoundBinaryPatchPath, std::span<uint8_t> customBackground)
-{
-	tonccpy(unlaunchInstallerBuffer, ogUnlaunchInstallerBuffer, sizeof(unlaunchInstallerBuffer));
-	if (splashSoundBinaryPatchPath)
-	{
-		printf("Applying splash and sound patch\n");
-		if(!applyBinaryPatch(splashSoundBinaryPatchPath))
-		{
-			return false;
-		}
-	} else {
-		if(disableAllPatches) {
-			// change launcher TID from ANH to SAN so that unlaunch doesn't realize it's booting the launcher
-			auto patchOffset = blockAllPatchesOffset[installerVersion];
-			const char newID[]{'S','A','N'};
-			memcpy((unlaunchInstallerBuffer + 520) + patchOffset, newID, 3);
-		}
-		printf("Applying Device list patch\n");
-		if(!applyBinaryPatch("nitro:/fix-devicelist-patch.bin"))
-		{
-			return false;
-		}
-	}
-	if(!patchCustomBackground(customBackground))
-	{
-		return false;
-	}
-	return true;
-}
-
-UNLAUNCH_VERSION loadUnlaunchInstaller(std::string_view path)
-{
-	if(readUnlaunchInstaller(path) && verifyUnlaunchInstaller())
-	{
-		tonccpy(ogUnlaunchInstallerBuffer, unlaunchInstallerBuffer, sizeof(unlaunchInstallerBuffer));
+		tonccpy(ogAstronautBuffer, astronautBuffer, sizeof(astronautBuffer));
 		return installerVersion;
 	}
 	return INVALID;
 }
 
-UNLAUNCH_VERSION loadUnlaunchLikeHomebrew(std::string_view path)
-{
-	FILE* installer = fopen(path.data(), "rb");
-	if (!installer)
-	{
-		messageBox(std::format("\x1B[31mError:\x1B[33m Failed to open {}\n", path).data());
-		return INVALID;
-	}
-
-	unlaunchInstallerSize = getFileSize(installer);
-	if(unlaunchInstallerSize > sizeof(unlaunchInstallerBuffer) - 520)
-	{
-		messageBox(std::format("\x1B[31mError:\x1B[33m File too big {}\n", path).data());
-		return INVALID;
-	}
-
-	auto readAmount = readFileAll(installer, unlaunchInstallerBuffer + 520, sizeof(unlaunchInstallerBuffer) - 520);
-
-	fclose(installer);
-
-	if(readAmount != unlaunchInstallerSize)
-	{
-		messageBox(std::format("\x1B[31mError:\x1B[33m Failed to read {}\n", path).data());
-		return INVALID;
-	}
-	tonccpy(ogUnlaunchInstallerBuffer, unlaunchInstallerBuffer, sizeof(unlaunchInstallerBuffer));
-	return CUSTOM;
-}
-
-std::array unlaunchVersionStrings{
-	"v2.0",
-	";)",
+std::array astronautVersionStrings{
+	"INDEV",
+	"0.1.0",
 	"INVALID",
 };
 
-static_assert(unlaunchVersionStrings.size() == (INVALID + 1));
+static_assert(astronautVersionStrings.size() == (INVALID + 1));
 
-const char* getUnlaunchVersionString(UNLAUNCH_VERSION version)
+const char* getAstronautVersionString(ASTRONAUT_VERSION version)
 {
-	return unlaunchVersionStrings[version];
+	return astronautVersionStrings[version];
 }
 
-bool installUnlaunch(const consoleInfo& info, bool disableAllPatches, const char* splashSoundBinaryPatchPath, std::span<uint8_t> customBackground)
+bool installAstronaut(const consoleInfo& info, bool disableAllPatches, const char* splashSoundBinaryPatchPath, std::span<uint8_t> customBackground)
 {
 	if (installerVersion == INVALID)
-		return false;
-
-	if (installerVersion != CUSTOM && !patchUnlaunchInstaller(disableAllPatches, splashSoundBinaryPatchPath, customBackground))
 		return false;
 
 	// Treat protos differently
 	if (!info.isRetail)
 	{
-		return installUnlaunchProtoConsole();
+		return installAstronautProtoConsole();
 	}
 	// Do things normally for production units
-	return installUnlaunchRetailConsole(info);
+	return installAstronautRetailConsole(info);
 }
