@@ -22,7 +22,7 @@ So installing on consoles that ship that version won't be allowed and you will n
 - [edo9300](https://github.com/edo9300): for creating the unlaunch installer which this installer was created from
 - [AntonioND](https://github.com/AntonioND/): for [blocksds](https://blocksds.skylyrac.net/)
 - [Martin Korth (nocash)](https://problemkaputt.de):
-  [GBATEK](https://problemkaputt.de/gbatek.htm) and [UNLAUNCH](https://problemkaputt.de/unlaunch.htm) itself.
+  [GBATEK](https://problemkaputt.de/gbatek.htm) and [UNLAUNCH](https://problemkaputt.de/unlaunch.htm) which preceeded Astronaut.
 - [JeffRuLz](https://github.com/JeffRuLz)/[Epicpkmn11](https://github.com/Epicpkmn11):
   [TMFH](https://github.com/JeffRuLz/TMFH)/[NTM](https://github.com/Epicpkmn11/NTM)
   (what this is project used as base for menus)
