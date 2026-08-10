@@ -133,9 +133,9 @@ void printMenu(Menu* m)
 	if (!m) return;
 
 	//header
-	printf("\x1B[42m");	//green
+	printf("\x1b[92m");	//green
 	printf("%.30s\n\n", m->header);
-	printf("\x1B[47m");	//white
+	printf("\x1b[97m");	//white
 
 	if (m->itemCount <= 0)
 	{
@@ -149,7 +149,7 @@ void printMenu(Menu* m)
 		if (m->items[i].label)
 		{
 			if(!m->items[i].enabled)
-				printf("\x1B[37m");	//gray
+				printf("\x1b[37m");	//gray
 
 			if (m->items[i].directory)
 				printf(" [%.26s]\n", m->items[i].label);
@@ -157,7 +157,7 @@ void printMenu(Menu* m)
 				printf(" %.28s\n", m->items[i].label);
 
 			if(!m->items[i].enabled)
-				printf("\x1B[47m");	//white
+				printf("\x1b[97m");	//white
 		}
 		else
 			printf(" \n");

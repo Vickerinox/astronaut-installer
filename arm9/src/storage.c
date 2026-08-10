@@ -22,7 +22,7 @@ static void printProgressBar(float percent)
 	{
 		consoleSelect(&topScreen);
 
-		printf("\x1B[42m");	//green
+		printf("\x1b[92m");	//green
 
 		//Print frame
 		if (lastBars <= 0)
@@ -40,7 +40,7 @@ static void printProgressBar(float percent)
 
 		lastBars = bars;
 
-		printf("\x1B[47m");	//white
+		printf("\x1b[97m");	//white
 	}
 }
 
@@ -264,7 +264,7 @@ bool safeCreateDir(const char* path)
 		return true;
 
 	char errorStr[512];
-	sprintf(errorStr, "\x1B[31mError:\x1B[33m Failed to create directory (%s)\n", path);
+	sprintf(errorStr, "\x1b[91mError:\x1b[93m Failed to create directory (%s)\n", path);
 
 	messageBox(errorStr);
 	return false;

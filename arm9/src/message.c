@@ -20,9 +20,9 @@ bool choiceBox(const char* message)
 
 	clearScreen(&bottomScreen);
 
-	printf("\x1B[33m");	//yellow
+	printf("\x1b[93m");	//yellow
 	printf("%s\n", message);
-	printf("\x1B[47m");	//white
+	printf("\x1b[97m");	//white
 	printf("\x1b[%d;0H\tYes\n\tNo\n", choiceRow);
 
 	while (!programEnd)
@@ -64,9 +64,9 @@ bool choicePrint(const char* message)
 {
 	bool choice = NO;
 
-	printf("\x1B[33m");	//yellow
+	printf("\x1b[93m");	//yellow
 	printf("\n%s\n", message);
-	printf("\x1B[47m");	//white
+	printf("\x1b[97m");	//white
 	printf("Yes - [A]\nNo  - [B]\n");
 
 	while (!programEnd)
@@ -107,9 +107,9 @@ bool randomConfirmBox(const char* message)
 
 	clearScreen(&bottomScreen);
 
-	printf("\x1B[43m");	//yellow
+	printf("\x1b[93m");	//yellow
 	printf("%s\n", message);
-	printf("\x1B[47m");	//white
+	printf("\x1b[97m");	//white
 	printf("\n<START> cancel\n");
 
 	while (!programEnd && sequencePosition < sizeof(sequence))
