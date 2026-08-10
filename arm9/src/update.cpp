@@ -279,7 +279,7 @@ int HttpsParser::getWebsiteSSL(const char *certs, const char *host, const char *
             }
             if(show_progress) {
                 if(response == 200) {
-                    swiWaitForVBlank();
+                    cothread_yield_irq(IRQ_VBLANK);
                     clearScreen(&bottomScreen);
                     printProgessBar("Downloading", downloaded, content_len);
                 }  
@@ -421,19 +421,25 @@ int lookForUpdates(const std::string& install_location)
         else 
             return UPDATE_BAD_WIFI_INIT;
     }
+    int num_wfc_caps = Wifi_GetData(WIFIGETDATA_NUMWFCAPS, 0, NULL);
+    if (num_wfc_caps <= 0)
+        return UPDATE_NO_APS;
     
-    Wifi_DisconnectAP();
-    Wifi_DisableWifi();
+    cothread_yield_irq(IRQ_VBLANK);
     Wifi_EnableWifi();
+    cothread_yield_irq(IRQ_VBLANK);
     Wifi_AutoConnect();
+    cothread_yield_irq(IRQ_VBLANK);
+
     int timer = 0;
     int retries = 0;
     int ret = 0;
     while (1)
     {      
+        
         int status = Wifi_AssocStatus();
         char const* msg = NULL;
-        timer += 2;
+        timer++;
         switch(status) {
             case ASSOCSTATUS_DISCONNECTED:
             msg = "Disconnected";
@@ -448,7 +454,6 @@ int lookForUpdates(const std::string& install_location)
             msg = "Connecting";
             break;
             case ASSOCSTATUS_ACQUIRINGDHCP:
-            timer--;
             msg = "Gathering IP address";
             break;
             case ASSOCSTATUS_ASSOCIATED:
@@ -476,7 +481,7 @@ int lookForUpdates(const std::string& install_location)
             break;
         }
         char const* throbber = NULL;
-        switch((timer>>3) & 3) {
+        switch((timer>>2) & 3) {
             case 0:
             throbber = "-";
             break;
@@ -490,12 +495,12 @@ int lookForUpdates(const std::string& install_location)
             throbber = "/";
             break;
         }
-        swiWaitForVBlank();
+        cothread_yield_irq(IRQ_VBLANK);
         clearScreen(&bottomScreen);
         if (retries) 
-            printf("%s %s\n(retry %d)", msg, throbber, retries);
+            printf("%s \x1b[0;28H%s\n(retry %d)", msg, throbber, retries);
         else 
-            printf("%s %s\n", msg, throbber);
+            printf("%s \x1b[0;28H%s\n", msg, throbber);
     }
     if(ret) {
         goto exit_no_files;

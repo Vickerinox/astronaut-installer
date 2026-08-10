@@ -54,12 +54,15 @@ bool choiceBox(const char* message)
 }
 void printProgessBar(const char* msg, int progress, int total) {
     int bar = 30 * progress / total;
-    char buf[] = "[..............................]";
+    printf("\x1b[97m%s (%d/%d)\n", msg, progress, total);
+    printf("\x1b[97m[\x1b[90m..............................\x1b[97m]");
+	char buf[30] = {0};
     for (int i = 0; i < bar; i++) {
-        buf[i+1] = '=';
+        buf[i] = '=';
     }
-    printf("%s (%d/%d)\n%s\n", msg, progress, total, buf);
+	printf("\x1b[31D\x1b[92m%s\x1b[97m", buf);
 }
+
 bool choicePrint(const char* message)
 {
 	bool choice = NO;

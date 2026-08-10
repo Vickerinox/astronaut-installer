@@ -709,6 +709,12 @@ void doUpdate() {
 			error_message = "Couldn't establish an \n"
 							"internet connection.";
 			break;
+			case UPDATE_NO_APS:
+			error_message = "There are no access points\n"
+							"configured, please go to the\n"
+							"system settings and set up\n"
+							"at least one wifi network.";
+			break;
 			case UPDATE_UNKNOWN_ERROR:
 			default:
 			break;
