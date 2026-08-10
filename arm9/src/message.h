@@ -18,6 +18,7 @@ bool choicePrint(const char* message);
 bool randomConfirmBox(const char* message);
 void messageBox(const char* message);
 void messagePrint(const char* message);
+void printProgessBar(const char* msg, int progress, int total);
 
 #ifdef __cplusplus
 }

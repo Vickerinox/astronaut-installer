@@ -22,6 +22,7 @@ bool calculateFileSha1PathOffset(const char* path, void* digest, size_t offset);
 static inline bool calculateFileSha1(FILE* f, void* digest) {
 	return calculateFileSha1Offset(f, digest, 0);
 }
+bool calculateFileSha1ShowProgress(FILE* f, void* digest, int total_size);
 
 static inline bool calculateFileSha1Path(const char* path, void* digest) {
 	return calculateFileSha1PathOffset(path, digest, 0);

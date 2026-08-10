@@ -52,7 +52,14 @@ bool choiceBox(const char* message)
 	scanKeys();
 	return (cursor == 0)? YES: NO;
 }
-
+void printProgessBar(const char* msg, int progress, int total) {
+    int bar = 30 * progress / total;
+    char buf[] = "[..............................]";
+    for (int i = 0; i < bar; i++) {
+        buf[i+1] = '=';
+    }
+    printf("%s (%d/%d)\n%s\n", msg, progress, total, buf);
+}
 bool choicePrint(const char* message)
 {
 	bool choice = NO;

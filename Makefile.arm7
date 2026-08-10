@@ -23,8 +23,10 @@ DEFINES		:=
 # Libraries
 # ---------
 
-LIBS		:= -lnds7
+LIBS		:= -lnds7 -ldswifi7
 LIBDIRS		:= $(BLOCKSDS)/libs/libnds
+LIBDIRS		+= $(BLOCKSDS)/libs/dswifi
+
 
 # Build artifacts
 # -----------------

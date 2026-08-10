@@ -20,7 +20,7 @@ extern int bgGifTop;
 extern int bgGifBottom;
 
 void clearScreen(PrintConsole* screen);
-
+char* versionString();
 #ifdef __cplusplus
 }
 #endif
