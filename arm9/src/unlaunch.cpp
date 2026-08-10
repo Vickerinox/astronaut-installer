@@ -23,7 +23,7 @@ size_t astronautSize{};
 
 constexpr std::array knownAstronautHashes{
 	"99454e7a84adc702247d1f93d165c7195e127378"_sha1, //first private astronaut pre-release
-	"797183356a5fc2b6a8cbce04e313fac39e4a6125"_sha1, //first public astronaut release
+	"797183356a5fc2b6a8cbce04e313fac39e4a6125"_sha1, //first public astronaut release (unfortunately unreproducible)
 };
 
 

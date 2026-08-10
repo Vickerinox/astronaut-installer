@@ -33,10 +33,13 @@
 #define UPDATE_BAD_FILE_OPEN_TEMP -25
 #define UPDATE_BAD_FILE_OPEN_INSTALL -26
 
+#define UPDATE_NO_INTERNET -27
+
 #define UPDATE_BAD_CLEANUP_DELORIGINAL 1
 #define UPDATE_BAD_CLEANUP_DELTEMP 2
 #define UPDATE_BAD_CLEANUP_DELMETA 3
 #define UPDATE_BAD_CLEANUP_RENAME 4
+
 
 class HttpsParser {
     
@@ -48,7 +51,7 @@ class HttpsParser {
     bool show_progress;
     char const* show_message;
     
-    int getWebsiteSSL(const char *certs, const char *host, const char *path, FILE* response_save, bool show_progress);
+    int getWebsiteSSL(const char *certs, const char *host, const char *path, FILE* response_save);
     void parse_line();
     void reset();
 

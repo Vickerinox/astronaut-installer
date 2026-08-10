@@ -88,8 +88,9 @@ static void setupScreens()
 	vramSetBankC(VRAM_C_SUB_BG);
 
 	consoleInit(&topScreen, 1, BgType_Text4bpp, BgSize_T_256x256, 14, 0, true, true);
+	consoleEnhancedColorHandler(NULL);
 	consoleInit(&bottomScreen, 1, BgType_Text4bpp, BgSize_T_256x256, 14, 0, false, true);
-
+	consoleEnhancedColorHandler(NULL);
 	clearScreen(&bottomScreen);
 
 	bgGifTop = bgInit(3, BgType_Bmp16, BgSize_B16_256x256, 2, 0);
@@ -107,12 +108,12 @@ static int mainMenu(const consoleInfo& info, int cursor)
 
 	printf("\t\"Safe\" astronaut installer\n");
 	printf("\nversion %s\n", VERSION);
-	printf("\n\n\x1B[41mWARNING:\x1B[47m This tool can write to"
+	printf("\n\n\x1b[91mWARNING:\x1b[97m This tool can write to"
 			"\nyour internal NAND!"
 			"\n\nThis always has a risk, albeit"
-			"\nlow, of \x1B[41mbricking\x1B[47m your system"
+			"\nlow, of \x1b[91mbricking\x1b[97m your system"
 			"\nand should be done with caution!\n");
-	printf("\n\t  \x1B[46mhttps://dsi.cfw.guide\x1B[47m\n");
+	printf("\n\t  \x1b[96mhttps://dsi.cfw.guide\x1b[97m\n");
 	printf("\x1b[23;0Hedo9300, fork by vikrinox - 2026");
 
 	//menu
@@ -206,6 +207,7 @@ static int mainMenu(const consoleInfo& info, int cursor)
 void setup() {
 	keysSetRepeat(25, 5);
 	setupScreens();
+	
 
 	fifoSetValue32Handler(FIFO_USER_01, [](u32 value32, void*) {
 		if (value32 != 0x54495845) // 'EXIT'
@@ -217,7 +219,7 @@ void setup() {
 	//DSi check
 	if (!isDSiMode())
 	{
-		messageBox("\x1B[31mError:\x1B[33m This app is exclusively for DSi.");
+		messageBox("\x1b[91mError:\x1b[93m This app is exclusively for DSi.");
 		exit(0);
 	}
 
@@ -227,12 +229,12 @@ void setup() {
 	//setup sd card and nand access
 	if (!fatInitDefault())
 	{
-		messageBox("fatInitDefault()...\x1B[31mFailed\n\x1B[47m");
+		messageBox("fatInitDefault()...\x1b[91mFailed\n\x1b[97m");
 	}
 
 	if (!nandInit(false))
 	{
-		messageBox("\x1B[31mFailed to mount NAND\n\x1B[47m");
+		messageBox("\x1b[91mFailed to mount NAND\n\x1b[97m");
 	}
 
 	bool isMBR = []{
@@ -244,7 +246,7 @@ void setup() {
 
 	if(!isMBR)
 	{
-		messageBox("\x1B[41mWARNING:\x1B[47m This SD is not\n"
+		messageBox("\x1b[91mWARNING:\x1b[97m This SD is not\n"
 				   "formatted as MBR, required by\n"
 				   "Unlaunch/Astronaut to work.\n"
 				   "If you install it, Unlaunch\n"
@@ -259,14 +261,14 @@ void checkStage2Supported() {
 	for(const auto& [sha, unlaunch]: knownStage2s) {
 		if(sha == digest) {
 			if(!unlaunch) {
-				messageBox("\x1B[31mError:\x1B[33m A known stage2 was found but is not compatible with\n"
+				messageBox("\x1b[91mError:\x1b[93m A known stage2 was found but is not compatible with\n"
 						   "astronaut.");
 				exit(0);
 			}
 			return;
 		}
 	}
-	messageBox("\x1B[31mError:\x1B[33m An unknown stage2\n"
+	messageBox("\x1b[91mError:\x1b[93m An unknown stage2\n"
 			   "was found. This is a rare find,\n"
 			   "you should look for help\n"
 			   "archiving and documenting\n"
@@ -291,7 +293,7 @@ void setupNitrofs() {
 		if(std::string_view{verstring} == VERSION)
 			return;
 	}
-	messageBox("nitroFSInit()...\x1B[31mFailed\n\x1B[47m");
+	messageBox("nitroFSInit()...\x1b[91mFailed\n\x1b[97m");
 	exit(0);
 }
 
@@ -307,7 +309,7 @@ void checkNocashFooter(consoleInfo& info) {
 	{
 		if(memcmp(&footer, &info.nocashFooter, sizeof(footer)) != 0)
 		{
-			messageBox("\x1B[31mError:\x1B[33m This console has a\n"
+			messageBox("\x1b[91mError:\x1b[93m This console has a\n"
 					   "nocash footer embedded in its\n"
 					   "nand that doesn't match the one\n"
 					   "generated.\n"
@@ -341,7 +343,7 @@ void waitForBatteryChargedEnough() {
 	// bit 7 will be set, making this value greater than 7
 	while (getBatteryLevel() < 7 && !programEnd)
 	{
-		if (choiceBox("\x1B[47mBattery is too low!\nPlease plug in the console.\n\nContinue?") == NO)
+		if (choiceBox("\x1b[97mBattery is too low!\nPlease plug in the console.\n\nContinue?") == NO)
 			exit(0);
 	}
 }
@@ -353,7 +355,7 @@ void loadAstronaut() {
 		if(foundAstronautVersion != INVALID)
 			return;
 
-		messageBox("\x1B[41mWARNING:\x1B[47m Failed to load astronaut\n"
+		messageBox("\x1b[91mWARNING:\x1b[97m Failed to load astronaut\n"
 				   "from the root of the sd card.\n"
 				   "Attempting to use the bundled one.");
 	}
@@ -363,7 +365,7 @@ void loadAstronaut() {
 	if(foundAstronautVersion != INVALID)
 		return;
 
-	messageBox("\x1B[41mWARNING:\x1B[47m Failed to load bundled astronaut\n"
+	messageBox("\x1b[91mWARNING:\x1b[97m Failed to load bundled astronaut\n"
 			   "installer.\n"
 			   "Installing astronaut won't be possible.");
 }
@@ -570,7 +572,7 @@ void uninstall(consoleInfo& info, bool noBackup) {
 	}
 	else
 	{
-		messageBox("\x1B[31mError:\x1B[33m Uninstall failed\n");
+		messageBox("\x1b[91mError:\x1b[93m Uninstall failed\n");
 	}
 	nand_WriteProtect(true);
 }
@@ -617,7 +619,7 @@ void install(consoleInfo& info) {
 	}
 	else
 	{
-		messageBox("\x1B[31mError:\x1B[33m Install failed\n");
+		messageBox("\x1b[91mError:\x1b[93m Install failed\n");
 	}
 	nand_WriteProtect(true);
 }
@@ -653,13 +655,16 @@ void doUpdate() {
 			error_message = "Failed to establish TLS seed.";
 			break;
 			case UPDATE_BAD_TLS_CERTS:
-			error_message = "Failed to establish TLS certificates.";
+			error_message = "Failed to establish TLS\n"
+							"certificates.";
 			break;
 			case UPDATE_BAD_TLS_CONNECT:
-			error_message = "Failed to establish TLS connection.";
+			error_message = "Failed to establish TLS\n"
+							"connection.";
 			break;
 			case UPDATE_BAD_TLS_CONFIG:
-			error_message = "Failed to establish TLS configuration.";
+			error_message = "Failed to establish TLS\n"
+							"configuration.";
 			break;
 			case UPDATE_BAD_TLS_SETUP:
 			error_message = "Failed to setup TLS.";
@@ -671,29 +676,38 @@ void doUpdate() {
 			error_message = "Failed to perform TLS handshake.";
 			break;
 			case UPDATE_BAD_TLS_VERIFY:
-			error_message = "Failed to verify TLS certificate.";
+			error_message = "Failed to verify TLS\n"
+							"certificate.";
 			break;
 			case UPDATE_BAD_DOWNLOAD_COMM:
 			error_message = "Download failed.";
 			break;
 			case UPDATE_BAD_DOWNLOAD_WRITE:
-			error_message = "Failed to write downloaded file to SD card.";
+			error_message = "Failed to write downloaded\n"
+							"file to SD card.";
 			break;
 			case UPDATE_BAD_TLS_FINISH:
 			error_message = "Failed to close TLS connection.";
 			break;
 			case UPDATE_BAD_HTTP_CODE:
-			error_message = "Recieved an unrecognized HTTP code while trying to fetch the update.";
+			error_message = "Recieved an unrecognized HTTP\n"
+							"code while fetching the update.";
 			break;
 			case UPDATE_BAD_REDIRECT:
 			error_message = "Failed to follow file redirect.";
 			break;
 			case UPDATE_BAD_LENGTH:
-			error_message = "The downloaded file was not the expected length.";
+			error_message = "The downloaded file was\n"
+							"not the expected length.";
 			break;
 			case UPDATE_BAD_VERIFY:
 			case UPDATE_BAD_SHA1:
-			error_message = "The downloaded file didn't match the expected SHA1 hash.";
+			error_message = "The downloaded file didn't\n"
+							"match the expected SHA1 hash.";
+			break;
+			case UPDATE_NO_INTERNET:
+			error_message = "Couldn't establish an \n"
+							"internet connection.";
 			break;
 			case UPDATE_UNKNOWN_ERROR:
 			default:
@@ -772,7 +786,7 @@ int main(int argc, char **argv)
 		// an "officially" installed unlaunch without leaving any backup behind will be allowed
 		if(info.launcherVersion == 4) {
 			isLauncherVersionSupported = false;
-			messageBox("\x1B[41mWARNING:\x1B[47m This system version\n"
+			messageBox("\x1b[91mWARNING:\x1b[97m This system version\n"
 					   "doesn't support this install\n"
 					   "method, only uninstalling\n"
 					   "unaunch without backups will\n"
@@ -787,10 +801,10 @@ int main(int argc, char **argv)
 		}
 		
 		if(!programEnd) {
-			messageBox("\x1B[41mWARNING:\x1B[47m This tool can write to\n"
+			messageBox("\x1b[91mWARNING:\x1b[97m This tool can write to\n"
 				   "your internal NAND!\n\n"
 				   "This always has a risk, albeit\n"
-				   "low, of \x1B[41mbricking\x1B[47m your system\n"
+				   "low, of \x1b[91mbricking\x1b[97m your system\n"
 				   "and should be done with caution!\n\n"
 				   "If you have not yet done so,\n"
 				   "you should make a NAND backup.");

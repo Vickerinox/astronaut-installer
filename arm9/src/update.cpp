@@ -82,7 +82,7 @@ void HttpsParser::reset() {
     show_progress = true;
 }
 
-int HttpsParser::getWebsiteSSL(const char *certs, const char *host, const char *path, FILE* response_save, bool show_progress)
+int HttpsParser::getWebsiteSSL(const char *certs, const char *host, const char *path, FILE* response_save)
 {
     reset();
 
@@ -336,7 +336,7 @@ int HttpsParser::download_file_from_github(const char* url, const char* store_to
                 } else {
                     banan = "/github-io-chain.pem";
                 }
-                if(int error = getWebsiteSSL(banan,current_host, current_line, log, show_progress)) {
+                if(int error = getWebsiteSSL(banan,current_host, current_line, log)) {
                     ret = error;
                     redirects = 0;
                 } else {
@@ -354,7 +354,7 @@ int HttpsParser::download_file_from_github(const char* url, const char* store_to
                 redirects = 0;
             }
         } else { 
-            if(int error = getWebsiteSSL("/github-com-chain.pem","github.com",url, log, show_progress)) {
+            if(int error = getWebsiteSSL("/github-com-chain.pem","github.com",url, log)) {
                 ret = error;
                 redirects = 0;
             } else {
@@ -416,14 +416,91 @@ int lookForUpdates(const std::string& install_location)
     printf("Connecting to Wifi...");
     // Initialize WiFi
     if(initWifi) {
-        if(Wifi_InitDefault(WFC_CONNECT | WIFI_ATTEMPT_DSI_MODE))
+        if(Wifi_InitDefault(INIT_ONLY | WIFI_ATTEMPT_DSI_MODE))
             initWifi = false;
         else 
             return UPDATE_BAD_WIFI_INIT;
     }
     
-    // Find out what the latest version is
+    Wifi_DisconnectAP();
+    Wifi_DisableWifi();
+    Wifi_EnableWifi();
+    Wifi_AutoConnect();
+    int timer = 0;
+    int retries = 0;
     int ret = 0;
+    while (1)
+    {      
+        int status = Wifi_AssocStatus();
+        char const* msg = NULL;
+        timer += 2;
+        switch(status) {
+            case ASSOCSTATUS_DISCONNECTED:
+            msg = "Disconnected";
+            break;
+            case ASSOCSTATUS_SEARCHING:
+            msg = "Searching for access point";
+            break;
+            case ASSOCSTATUS_AUTHENTICATING:
+            msg = "Authenticating";
+            break;
+            case ASSOCSTATUS_ASSOCIATING:
+            msg = "Connecting";
+            break;
+            case ASSOCSTATUS_ACQUIRINGDHCP:
+            timer--;
+            msg = "Gathering IP address";
+            break;
+            case ASSOCSTATUS_ASSOCIATED:
+            msg = "Connected";
+            break;
+            case ASSOCSTATUS_CANNOTCONNECT:
+            msg = "Couldn't connect";
+            break;
+        }
+        if (status == ASSOCSTATUS_ASSOCIATED)
+        {
+            break;
+        }
+        
+        if(timer > 1024 || status == ASSOCSTATUS_CANNOTCONNECT || status == ASSOCSTATUS_DISCONNECTED) {
+            Wifi_DisconnectAP();
+            Wifi_DisableWifi();
+            Wifi_EnableWifi();
+            Wifi_AutoConnect();
+            retries++;
+            timer = 0;
+        }
+        if(retries > 5) {
+            ret = UPDATE_NO_INTERNET;
+            break;
+        }
+        char const* throbber = NULL;
+        switch((timer>>3) & 3) {
+            case 0:
+            throbber = "-";
+            break;
+            case 1:
+            throbber = "\\";
+            break;
+            case 2:
+            throbber = "|";
+            break;
+            case 3:
+            throbber = "/";
+            break;
+        }
+        swiWaitForVBlank();
+        clearScreen(&bottomScreen);
+        if (retries) 
+            printf("%s %s\n(retry %d)", msg, throbber, retries);
+        else 
+            printf("%s %s\n", msg, throbber);
+    }
+    if(ret) {
+        goto exit_no_files;
+    }
+    // Find out what the latest version is
     {
         clearScreen(&bottomScreen);
         HttpsParser parser = HttpsParser();
@@ -433,89 +510,86 @@ int lookForUpdates(const std::string& install_location)
         ret = parser.download_file_from_github(META_URL_PATH, meta_install_location.c_str());
         
     }
-    if(ret) {
-        return ret;
-    }
 
-    // Decode the new version data
-    Sha1Digest expected_sha1;
-    std::string version;
-    int expected_len = 0;
-    FILE* shid = fopen(meta_install_location.c_str(), "rb");
-    if (!shid) {
-        ret = UPDATE_BAD_FILE_OPEN_META;
-        goto exit;
-    }    
-    if(int error = check_version(shid, expected_len, expected_sha1, version)) {
-        if(error != UPDATE_VERSION_ALREADY_LATEST) {
-            ret = error;
+    
+    if(ret) {
+        goto exit_no_files;
+    }
+    {
+        Sha1Digest expected_sha1;
+        std::string version;
+        int expected_len = 0;
+        // Decode the new version data
+        FILE* shid = fopen(meta_install_location.c_str(), "rb");
+        if (!shid) {
+            ret = UPDATE_BAD_FILE_OPEN_META;
+            goto exit;
+        }    
+        
+        if(int error = check_version(shid, expected_len, expected_sha1, version)) {
+            if(error != UPDATE_VERSION_ALREADY_LATEST) {
+                ret = error;
+                goto exit;
+            }
+            if(!choiceBox("You're already up to date,\ndo you want to update anyway?")) {
+                ret = UPDATE_CANCELLED;
+                goto exit;
+            }
+        } 
+        if(expected_len <= 0 || expected_sha1 == Sha1Digest{}) {
+            ret = UPDATE_VERSION_INVALID;
             goto exit;
         }
-        if(!choiceBox("You're already up to date,\ndo you want to update anyway?")) {
-            ret = UPDATE_CANCELLED;
-            goto exit;
-        }
-    } 
-    if(expected_len <= 0 || expected_sha1 == Sha1Digest{}) {
-        ret = UPDATE_VERSION_INVALID;
-        goto exit;
-    }
-    
-    // Ask if we want to download the new version
-    {
-        char buffer[256] = {0};
-        snprintf(buffer, sizeof(buffer), "Update available!\n\nVersion: %s\n\nupdate now?", version.c_str());
+        
+        // Ask if we want to download the new version
+        {
+            char buffer[256] = {0};
+            snprintf(buffer, sizeof(buffer), "Update available!\n\nVersion: %s\n\nupdate now?", version.c_str());
 
-        if (!choiceBox(buffer)) {
-            ret = UPDATE_CANCELLED;
-        }
-    }
-    if (ret) {
-        goto exit;
-    }
-
-    // Download the new version
-    {
-        HttpsParser parser = HttpsParser();
-        clearScreen(&bottomScreen);
-        printf("Connecting to github...");
-        ret = parser.download_file_from_github(TEMP_INSTALLER_URL_PATH, temp_install_location.c_str());
-    }
-    if (ret) {
-        goto exit;
-    }
-
-    // Verify the new version
-    if(FILE* shid2 = fopen(temp_install_location.c_str(), "rb")){
-        Sha1Digest actual_digest;
-        if(!calculateFileSha1ShowProgress(shid2, &actual_digest, expected_len)) {
-            ret = UPDATE_BAD_VERIFY;
-        }
-        long len = ftell(shid2);
-        fclose(shid2);
-        if(actual_digest != expected_sha1) {
-            ret = UPDATE_BAD_SHA1;
-        }
-        if(len != expected_len) {
-            ret = UPDATE_BAD_LENGTH;
-        }
-    } else {
-        ret = UPDATE_BAD_FILE_OPEN_INSTALL;
-    }
-    if(ret) {
-        goto exit;
-    }
-    
-    // Cleanup
-    exit:
-    
-    if(ret) {
-        if(fileExists(temp_install_location.c_str())) {
-            if(remove(temp_install_location.c_str())) {
-                ret = UPDATE_BAD_CLEANUP_DELTEMP;
+            if (!choiceBox(buffer)) {
+                ret = UPDATE_CANCELLED;
             }
         }
-    } else {
+        if (ret) {
+            goto exit;
+        }
+
+        // Download the new version
+        {
+            HttpsParser parser = HttpsParser();
+            clearScreen(&bottomScreen);
+            printf("Connecting to github...");
+            ret = parser.download_file_from_github(TEMP_INSTALLER_URL_PATH, temp_install_location.c_str());
+        }
+        if (ret) {
+            goto exit;
+        }
+
+        // Verify the new version
+        if(FILE* shid2 = fopen(temp_install_location.c_str(), "rb")){
+            Sha1Digest actual_digest;
+            if(!calculateFileSha1ShowProgress(shid2, &actual_digest, expected_len)) {
+                ret = UPDATE_BAD_VERIFY;
+            }
+            long len = ftell(shid2);
+            fclose(shid2);
+            if(actual_digest != expected_sha1) {
+                ret = UPDATE_BAD_SHA1;
+            }
+            if(len != expected_len) {
+                ret = UPDATE_BAD_LENGTH;
+            }
+        } else {
+            ret = UPDATE_BAD_FILE_OPEN_INSTALL;
+        }
+        
+        // Cleanup
+        exit:
+        fclose(shid);
+    }
+    exit_no_files:
+
+    if(ret == UPDATE_SUCCESS) {
         if(fileExists(install_location.c_str())) {
             if(remove(install_location.c_str())) {
                 ret = UPDATE_BAD_CLEANUP_DELORIGINAL;
@@ -523,9 +597,12 @@ int lookForUpdates(const std::string& install_location)
                 ret = UPDATE_BAD_CLEANUP_RENAME;
             }
         }
-        
+    } else if(fileExists(temp_install_location.c_str())) {
+        if(remove(temp_install_location.c_str())) {
+            ret = UPDATE_BAD_CLEANUP_DELTEMP;
+        }
     }
-    fclose(shid);
+    
     if(fileExists(meta_install_location.c_str())) {
         if(remove(meta_install_location.c_str())) {
             ret = UPDATE_BAD_CLEANUP_DELMETA;
