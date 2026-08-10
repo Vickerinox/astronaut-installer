@@ -1,4 +1,5 @@
 #include <nds.h>
+#include <dswifi7.h>
 
 volatile bool exitflag = false;
 volatile bool reboot = false;
@@ -19,12 +20,17 @@ TWL_CODE void i2cIRQHandlerCustom()
 			break;
 	}
 }
+void vblankHandler() {
+	inputGetAndSend();
+	Wifi_Update();
+}
 
 int main()
 {
 	irqInit();
 	irqSetAUX(IRQ_I2C, i2cIRQHandlerCustom);
 	fifoInit();
+	installWifiFIFO();
 	initClockIRQTimer(3);
 
 	struct {
@@ -33,13 +39,15 @@ int main()
 	} consoleIdAndCid;
 	consoleIdAndCid.consoleId = getConsoleID();
 
+	SDMMC_init(SDMMC_DEV_CARD);
+
 	SDMMC_init(SDMMC_DEV_eMMC);
 	SDMMC_getCidRaw(SDMMC_DEV_eMMC, consoleIdAndCid.cid);
 	fifoSendDatamsg(FIFO_USER_02, sizeof(consoleIdAndCid), (u8*)&consoleIdAndCid);
 
 	installSystemFIFO();
 
-	irqSet(IRQ_VBLANK, inputGetAndSend);
+	irqSet(IRQ_VBLANK, vblankHandler);
 
 	irqEnable(IRQ_VBLANK);
 

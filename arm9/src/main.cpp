@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <dirent.h>
 #include <string_view>
 #include <string>
@@ -18,6 +19,7 @@
 #include "version.h"
 #include "unlaunch.h"
 #include "nocashFooter.h"
+#include "update.h"
 
 using namespace std::string_view_literals;
 
@@ -70,9 +72,11 @@ static constexpr std::array knownStage2s{
 enum {
 	MAIN_MENU_SAFE_UNINSTALL,
 	MAIN_MENU_SAFE_INSTALL,
+	MAIN_MENU_SEARCH_FOR_UPDATES,
 	MAIN_MENU_EXIT,
 	MAIN_MENU_SAFE_UNINSTALL_NO_BACKUP,
 	MAIN_MENU_WRITE_NOCASH_FOOTER_ONLY,
+	
 };
 
 static void setupScreens()
@@ -133,6 +137,7 @@ static int mainMenu(const consoleInfo& info, int cursor)
 	}
 	addMenuItem(m, restore_string, NULL, !info.isStockTmd() && isLauncherVersionSupported, false);
 	addMenuItem(m, installAstronautStr, NULL, foundAstronautVersion != INVALID && info.isStockTmd() && isLauncherVersionSupported, false);
+	addMenuItem(m, "Look for updates", NULL, true, false);
 	addMenuItem(m, "Exit", NULL, true, false);
 	if(!isLauncherVersionSupported)
 	{
@@ -269,6 +274,11 @@ void checkStage2Supported() {
 	exit(0);
 }
 
+
+static char verstring[10] = {0};
+char* versionString() {
+	return verstring;
+}
 void setupNitrofs() {
 	for(const auto& path : {std::string_view{}, "sd:/ntrboot.nds"sv, "sd:/boot.nds"sv}) {
 		if(!nitroFSInit(path.data()))
@@ -276,7 +286,6 @@ void setupNitrofs() {
 		auto* file = fopen("nitro:/installer.ver", "rb");
 		if(!file)
 			continue;
-		char verstring[10]{};
 		fread(verstring, 1, sizeof(verstring) - 1, file);
 		fclose(file);
 		if(std::string_view{verstring} == VERSION)
@@ -614,6 +623,92 @@ void install(consoleInfo& info) {
 }
 
 
+static std::string our_path = "sd:/astronaut-installer.dsi";
+void doUpdate() {
+	if(int error = lookForUpdates(our_path)) {
+		char buffer[100] = {0};
+		snprintf(buffer, 100, "Update Failed, error code %d", error);
+		char const* error_message = buffer;
+		switch(error) {
+			
+			case UPDATE_VERSION_ALREADY_LATEST:
+			error_message = "You're already up to date!";
+			break;
+			case UPDATE_VERSION_INVALID:
+			error_message = "Failed to fetch version info.";
+			break;
+			case UPDATE_VERSION_CHECK_FAILED:
+			error_message = "Failed to check for updates.";
+			break;
+			case UPDATE_CANCELLED:
+			error_message = "Update cancelled.";
+			break;
+			case UPDATE_BAD_WIFI_INIT:
+			error_message = "Failed to initialize WiFi.";
+			break;
+			case UPDATE_BAD_WIFI_UNINIT:
+			error_message = "Failed to uninitialize WiFi.";
+			break;
+			case UPDATE_BAD_TLS_SEED:
+			error_message = "Failed to establish TLS seed.";
+			break;
+			case UPDATE_BAD_TLS_CERTS:
+			error_message = "Failed to establish TLS certificates.";
+			break;
+			case UPDATE_BAD_TLS_CONNECT:
+			error_message = "Failed to establish TLS connection.";
+			break;
+			case UPDATE_BAD_TLS_CONFIG:
+			error_message = "Failed to establish TLS configuration.";
+			break;
+			case UPDATE_BAD_TLS_SETUP:
+			error_message = "Failed to setup TLS.";
+			break;
+			case UPDATE_BAD_TLS_HOSTNAME:
+			error_message = "Failed to resolve TLS hostname.";
+			break;
+			case UPDATE_BAD_TLS_HANDSHAKE:
+			error_message = "Failed to perform TLS handshake.";
+			break;
+			case UPDATE_BAD_TLS_VERIFY:
+			error_message = "Failed to verify TLS certificate.";
+			break;
+			case UPDATE_BAD_DOWNLOAD_COMM:
+			error_message = "Download failed.";
+			break;
+			case UPDATE_BAD_DOWNLOAD_WRITE:
+			error_message = "Failed to write downloaded file to SD card.";
+			break;
+			case UPDATE_BAD_TLS_FINISH:
+			error_message = "Failed to close TLS connection.";
+			break;
+			case UPDATE_BAD_HTTP_CODE:
+			error_message = "Recieved an unrecognized HTTP code while trying to fetch the update.";
+			break;
+			case UPDATE_BAD_REDIRECT:
+			error_message = "Failed to follow file redirect.";
+			break;
+			case UPDATE_BAD_LENGTH:
+			error_message = "The downloaded file was not the expected length.";
+			break;
+			case UPDATE_BAD_VERIFY:
+			case UPDATE_BAD_SHA1:
+			error_message = "The downloaded file didn't match the expected SHA1 hash.";
+			break;
+			case UPDATE_UNKNOWN_ERROR:
+			default:
+			break;
+		}
+		messageBox(error_message);
+		if(error>0) {
+			messageBox("Since the update cleanup failed, the console will now restart.");
+			programEnd = true;
+		}
+	} else {
+		messageBox("Update successful! The console will now restart.");
+		programEnd = true;
+	}
+}
 
 void doMainMenu(consoleInfo& info) {
 	int cursor = 0;
@@ -642,6 +737,10 @@ void doMainMenu(consoleInfo& info) {
 		case MAIN_MENU_WRITE_NOCASH_FOOTER_ONLY:
 			(void)writeNocashFooter(info);
 			break;
+		
+		case MAIN_MENU_SEARCH_FOR_UPDATES:
+			doUpdate();
+			break;
 
 		case MAIN_MENU_EXIT:
 			programEnd = true;
@@ -649,9 +748,9 @@ void doMainMenu(consoleInfo& info) {
 		}
 	}
 }
-
 int main(int argc, char **argv)
 {
+	
 	setup();
 	checkStage2Supported();
 	setupNitrofs();
@@ -680,17 +779,25 @@ int main(int argc, char **argv)
 					   "be possible");
 		}
 
-		messageBox("\x1B[41mWARNING:\x1B[47m This tool can write to\n"
+		if(argc > 0) {
+			if (strlen(argv[0]) > 4)
+			{
+				our_path = std::string(argv[0]);
+			}
+		}
+		
+		if(!programEnd) {
+			messageBox("\x1B[41mWARNING:\x1B[47m This tool can write to\n"
 				   "your internal NAND!\n\n"
 				   "This always has a risk, albeit\n"
 				   "low, of \x1B[41mbricking\x1B[47m your system\n"
 				   "and should be done with caution!\n\n"
 				   "If you have not yet done so,\n"
 				   "you should make a NAND backup.");
+			waitForBatteryChargedEnough();
 
-		waitForBatteryChargedEnough();
-
-		doMainMenu(info);
+			doMainMenu(info);
+		}
 	} catch (const std::exception& e) {
 		messageBox(e.what());
 	}

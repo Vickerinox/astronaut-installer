@@ -25,8 +25,11 @@ DEFINES		:=
 # Libraries
 # ---------
 
-LIBS		:= -lnds9d
-LIBDIRS		:= $(BLOCKSDS)/libs/libnds
+LIBS		:= -ldswifi9 -lnds9 -lmbedcrypto -lmbedtls -lmbedx509
+
+LIBDIRS		:= $(BLOCKSDS)/libs/dswifi \
+			   $(BLOCKSDS)/libs/libnds \
+			   $(BLOCKSDSEXT)/mbedtls
 
 # Build artifacts
 # ---------------

@@ -196,7 +196,34 @@ bool writeToFile(FILE* fd, const char* buffer, size_t size)
 	}
 	return toWrite == 0;
 }
+bool calculateFileSha1ShowProgress(FILE* f, void* digest, int total_size) {
+	fseek(f, 0, SEEK_SET);
+	int vcount;
+	int scanned = 0;
+	swiSHA1context_t ctx;
+	ctx.sha_block = 0; //this is weird but it has to be done
+	swiSHA1Init(&ctx);
 
+	char buffer[512];
+	size_t n = 0;
+	while ((n = fread(buffer, sizeof(char), sizeof(buffer), f)) > 0)
+	{
+		scanned += n;
+		swiSHA1Update(&ctx, buffer, n);
+		vcount = *(volatile unsigned short*)(0x4000006);
+		if(vcount > 20 && vcount < 180)
+		{
+			clearScreen(&bottomScreen);
+			printProgessBar("Verifying", scanned, total_size);
+		}
+	} 
+	if (ferror(f) || !feof(f))
+	{
+		return false;
+	}
+	swiSHA1Final(digest, &ctx);
+	return true;
+}
 bool calculateFileSha1Offset(FILE* f, void* digest, size_t offset)
 {
 	fseek(f, offset, SEEK_SET);
