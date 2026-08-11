@@ -54,13 +54,59 @@ bool choiceBox(const char* message)
 }
 void printProgessBar(const char* msg, int progress, int total) {
     int bar = 30 * progress / total;
-    printf("\x1b[97m%s (%d/%d)\n", msg, progress, total);
+    printf("\x1b[97m%s (%d/%d KiB)\n", msg, progress>>10, total>>10);
     printf("\x1b[97m[\x1b[90m..............................\x1b[97m]");
 	char buf[30] = {0};
     for (int i = 0; i < bar; i++) {
         buf[i] = '=';
     }
 	printf("\x1b[31D\x1b[92m%s\x1b[97m", buf);
+}
+
+void annoyer() {
+	consoleClear();
+	printf("You're about to install an\nunverified stage 2 mod. Please\nbe careful and have an unbricking\nmethod like GCDBOOT on hand.\n");
+	printf("Press this button combo to continue:\n");
+
+	
+
+	int buttons[] = {KEY_A, KEY_B, KEY_X, KEY_Y, KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN};
+	char* button_names[] = {"A", "B", "X", "Y", "LEFT", "RIGHT", "UP", "DOWN"};
+
+	for (int i = 0; i < sizeof(buttons)/sizeof(int); i++) {
+		int swap_a = rand() % (sizeof(buttons)/sizeof(int));
+		int swap_b = rand() % (sizeof(buttons)/sizeof(int));
+		
+		int but = buttons[swap_a];
+		char* but2 = button_names[swap_a];
+
+		buttons[swap_a] = buttons[swap_b];
+		button_names[swap_a] = button_names[swap_b];
+		buttons[swap_b] = but;
+		button_names[swap_b] = but2;
+	}
+
+	start_combo:
+	printf("\x1b[10;2f\x1b[97m");
+	for (int i = 0; i < sizeof(buttons)/sizeof(int); i++) {
+		printf("%s ", button_names[i]);
+	}
+	printf("\x1b[10;2f\x1b[92m");
+	for (int i = 0; i < sizeof(buttons)/sizeof(int); i++) {
+		while (!programEnd)
+		{
+			swiWaitForVBlank();
+			scanKeys();
+
+			if (keysDown() & buttons[i])
+			{
+				printf("%s ", button_names[i]);
+				break;
+			} else if (keysDown() & ~buttons[i]) {
+				goto start_combo;
+			}
+		}
+	}
 }
 
 bool choicePrint(const char* message)

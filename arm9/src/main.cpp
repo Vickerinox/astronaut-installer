@@ -27,9 +27,6 @@ volatile bool programEnd = false;
 static volatile bool arm7Exiting = false;
 static bool retailLauncherTmdPresentAndToBePatched = true;
 static ASTRONAUT_VERSION foundAstronautVersion = INVALID;
-static bool disableAllPatches = true;
-static bool enableSoundAndSplash = false;
-static const char* splashSoundBinaryPatchPath = NULL;
 static std::span<uint8_t> customBgSpan{};
 static bool advancedOptionsUnlocked = false;
 static bool isLauncherVersionSupported = true;
@@ -350,9 +347,14 @@ void waitForBatteryChargedEnough() {
 }
 
 void loadAstronaut() {
+	if (fileExists("sd:/astronaut_nightly.bin")) {
+		foundAstronautVersion = loadAstronaut("sd:/astronaut_nightly.bin", ASTRONAUT_NIGHTLY);
+		if(foundAstronautVersion != INVALID)
+			return;
+	}
 	if (fileExists("sd:/astronaut"))
 	{
-		foundAstronautVersion = loadAstronaut("sd:/astronaut.bin");
+		foundAstronautVersion = loadAstronaut("sd:/astronaut.bin", ASTRONAUT_INDEV);
 		if(foundAstronautVersion != INVALID)
 			return;
 
@@ -361,7 +363,7 @@ void loadAstronaut() {
 				   "Attempting to use the bundled one.");
 	}
 
-	foundAstronautVersion = loadAstronaut("nitro:/astronaut.bin");
+	foundAstronautVersion = loadAstronaut("nitro:/astronaut.bin", ASTRONAUT_0_1_0);
 
 	if(foundAstronautVersion != INVALID)
 		return;
@@ -607,9 +609,7 @@ void install(consoleInfo& info) {
 		return;
 	}
 	nand_WriteProtect(false);
-	if(installAstronaut(info, disableAllPatches,
-						enableSoundAndSplash ? splashSoundBinaryPatchPath : NULL,
-						customBgSpan))
+	if(installAstronaut(info))
 	{
 		messageBox("Install successful!\n");
 		info.tmdGood = false;
