@@ -65,7 +65,7 @@ void printProgessBar(const char* msg, int progress, int total) {
 
 void annoyer() {
 	consoleClear();
-	printf("You're about to install an\nunverified stage 2 mod. Please\nbe careful and have an unbricking\nmethod like GCDBOOT on hand.\n");
+	printf("You're about to install an\nunverified stage 2 mod. Please\nbe careful. Have an unbricking\nmethod like GCDBOOT on hand.\n");
 	printf("Press this button combo to continue:\n");
 
 	
@@ -107,6 +107,7 @@ void annoyer() {
 			}
 		}
 	}
+	printf("\x1b[97m");
 }
 
 bool choicePrint(const char* message)
