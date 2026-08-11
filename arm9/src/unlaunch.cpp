@@ -13,8 +13,8 @@
 #include <memory>
 #include <format>
 
-static char astronautBuffer[80880+520];
-static char ogAstronautBuffer[80880+520];
+static char astronautBuffer[520+(256*1024)];
+static char ogAstronautBuffer[520+(256*1024)];
 static const char* hnaaTmdPath = "nand:/title/00030017/484e4141/content/title.tmd";
 static const char* hnaaBackupTmdPath = "nand:/title/00030017/484e4141/content/title.tmd.bak";
 
@@ -22,8 +22,9 @@ ASTRONAUT_VERSION installerVersion{INVALID};
 size_t astronautSize{};
 
 constexpr std::array knownAstronautHashes{
-	"99454e7a84adc702247d1f93d165c7195e127378"_sha1, //first private astronaut pre-release
-	"797183356a5fc2b6a8cbce04e313fac39e4a6125"_sha1, //first public astronaut release (unfortunately unreproducible)
+	"0000000000000000000000000000000000000000"_sha1, //nightly release, any hash.
+	"99454e7a84adc702247d1f93d165c7195e127378"_sha1, //first private astronaut pre-release (INDEV)
+	"797183356a5fc2b6a8cbce04e313fac39e4a6125"_sha1, //first public astronaut release (0.1.0, unfortunately unreproducible)
 };
 
 
@@ -31,7 +32,11 @@ static bool writeAstronautToHNAAFolder();
 
 bool isValidAstronautSize(size_t size)
 {
-	return size == 80880;
+	if(installerVersion == ASTRONAUT_NIGHTLY) {
+		return size < sizeof(astronautBuffer)-520;
+	} else {
+		return size == 80880;
+	}
 }
 
 static bool removeHnaaLauncher()
@@ -399,17 +404,26 @@ static bool verifyAstronaut(void)
 
 
 
-ASTRONAUT_VERSION loadAstronaut(std::string_view path)
+ASTRONAUT_VERSION loadAstronaut(std::string_view path, ASTRONAUT_VERSION assumption)
 {
-	if(readAstronautInstaller(path) && verifyAstronaut())
+	if(assumption == ASTRONAUT_NIGHTLY) {
+		installerVersion = ASTRONAUT_NIGHTLY;
+	}
+	if(readAstronautInstaller(path))
 	{
-		tonccpy(ogAstronautBuffer, astronautBuffer, sizeof(astronautBuffer));
-		return installerVersion;
+		if(assumption == ASTRONAUT_NIGHTLY) {
+			tonccpy(ogAstronautBuffer, astronautBuffer, sizeof(astronautBuffer));
+			return ASTRONAUT_NIGHTLY;
+		} else if (verifyAstronaut()){
+			tonccpy(ogAstronautBuffer, astronautBuffer, sizeof(astronautBuffer));
+			return installerVersion;
+		}
 	}
 	return INVALID;
 }
 
 std::array astronautVersionStrings{
+	"NIGHTLY",
 	"INDEV",
 	"0.1.0",
 	"INVALID",
@@ -422,10 +436,14 @@ const char* getAstronautVersionString(ASTRONAUT_VERSION version)
 	return astronautVersionStrings[version];
 }
 
-bool installAstronaut(const consoleInfo& info, bool disableAllPatches, const char* splashSoundBinaryPatchPath, std::span<uint8_t> customBackground)
+
+bool installAstronaut(const consoleInfo& info)
 {
 	if (installerVersion == INVALID)
 		return false;
+
+	if (installerVersion == ASTRONAUT_NIGHTLY)
+		annoyer();
 
 	// Treat protos differently
 	if (!info.isRetail)

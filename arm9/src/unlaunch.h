@@ -6,6 +6,7 @@
 #include "consoleInfo.h"
 
 typedef enum ASTRONAUT_VERSION {
+	ASTRONAUT_NIGHTLY,
 	ASTRONAUT_INDEV,
 	ASTRONAUT_0_1_0,
 	INVALID,
@@ -16,9 +17,9 @@ static constexpr auto MAX_GIF_SIZE = 0x3C70;
 const char* getAstronautVersionString(ASTRONAUT_VERSION);
 
 bool uninstallAstronaut(const consoleInfo& info, bool removeHNAABackup);
-bool installAstronaut(const consoleInfo& info, bool disableAllPatches, const char* splashSoundBinaryPatchPath, std::span<uint8_t> customBackground);
+bool installAstronaut(const consoleInfo& info);
 
-ASTRONAUT_VERSION loadAstronaut(std::string_view path);
+ASTRONAUT_VERSION loadAstronaut(std::string_view path, ASTRONAUT_VERSION assumption);
 ASTRONAUT_VERSION loadUnlaunchLikeHomebrew(std::string_view path);
 
 #endif
