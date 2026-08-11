@@ -389,16 +389,27 @@ static bool readAstronautInstaller(std::string_view path)
 
 static bool verifyAstronaut(void)
 {
-	Sha1Digest digest;
-	swiSHA1Calc(digest.data(), astronautBuffer + 520,  astronautSize);
-	auto it = std::ranges::find(knownAstronautHashes, digest);
-	if(it == knownAstronautHashes.end())
-	{
-		messageBox("\x1B[31mError:\x1B[33m Provided astronaut has an unknown hash\n");
-		return false;
+	if(installerVersion == ASTRONAUT_NIGHTLY) {
+		Sha1Digest digest;
+		swiSHA1Calc(digest.data(), astronautBuffer + 520,  astronautSize-SHA1_LEN);
+		Sha1Digest self_digest;
+		memccpy(self_digest.data(), astronautBuffer+520+astronautSize-SHA1_LEN, sizeof(char), SHA1_LEN);
+		if(digest != self_digest) {
+			messageBox("\x1B[31mError:\x1B[33m Provided astronaut has a bad SHA-1 hash\n");
+			return false;
+		}
+	} else {
+		Sha1Digest digest;
+		swiSHA1Calc(digest.data(), astronautBuffer + 520,  astronautSize);
+		auto it = std::ranges::find(knownAstronautHashes, digest);
+		if(it == knownAstronautHashes.end())
+		{
+			messageBox("\x1B[31mError:\x1B[33m Provided astronaut has an unknown hash\n");
+			return false;
+		}
+		auto idx = std::distance(knownAstronautHashes.begin(), it);
+		installerVersion = static_cast<ASTRONAUT_VERSION>(idx);
 	}
-	auto idx = std::distance(knownAstronautHashes.begin(), it);
-	installerVersion = static_cast<ASTRONAUT_VERSION>(idx);
 	return true;
 }
 
@@ -409,15 +420,10 @@ ASTRONAUT_VERSION loadAstronaut(std::string_view path, ASTRONAUT_VERSION assumpt
 	if(assumption == ASTRONAUT_NIGHTLY) {
 		installerVersion = ASTRONAUT_NIGHTLY;
 	}
-	if(readAstronautInstaller(path))
+	if(readAstronautInstaller(path) && verifyAstronaut())
 	{
-		if(assumption == ASTRONAUT_NIGHTLY) {
-			tonccpy(ogAstronautBuffer, astronautBuffer, sizeof(astronautBuffer));
-			return ASTRONAUT_NIGHTLY;
-		} else if (verifyAstronaut()){
-			tonccpy(ogAstronautBuffer, astronautBuffer, sizeof(astronautBuffer));
-			return installerVersion;
-		}
+		tonccpy(ogAstronautBuffer, astronautBuffer, sizeof(astronautBuffer));
+		return installerVersion;
 	}
 	return INVALID;
 }
