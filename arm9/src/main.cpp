@@ -69,7 +69,7 @@ static constexpr std::array knownStage2s{
 enum {
 	MAIN_MENU_SAFE_UNINSTALL,
 	MAIN_MENU_SAFE_INSTALL,
-	MAIN_MENU_SEARCH_FOR_UPDATES,
+	//MAIN_MENU_SEARCH_FOR_UPDATES,
 	MAIN_MENU_EXIT,
 	MAIN_MENU_SAFE_UNINSTALL_NO_BACKUP,
 	MAIN_MENU_WRITE_NOCASH_FOOTER_ONLY,
@@ -135,7 +135,7 @@ static int mainMenu(const consoleInfo& info, int cursor)
 	}
 	addMenuItem(m, restore_string, NULL, !info.isStockTmd() && isLauncherVersionSupported, false);
 	addMenuItem(m, installAstronautStr, NULL, foundAstronautVersion != INVALID && info.isStockTmd() && isLauncherVersionSupported, false);
-	addMenuItem(m, "Look for updates", NULL, true, false);
+	//addMenuItem(m, "Look for updates", NULL, true, false);
 	addMenuItem(m, "Exit", NULL, true, false);
 	if(!isLauncherVersionSupported)
 	{
@@ -758,9 +758,9 @@ void doMainMenu(consoleInfo& info) {
 			(void)writeNocashFooter(info);
 			break;
 		
-		case MAIN_MENU_SEARCH_FOR_UPDATES:
-			doUpdate();
-			break;
+		//case MAIN_MENU_SEARCH_FOR_UPDATES:
+		//	doUpdate();
+		//	break;
 
 		case MAIN_MENU_EXIT:
 			programEnd = true;
