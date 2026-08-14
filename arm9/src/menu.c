@@ -149,7 +149,7 @@ void printMenu(Menu* m)
 		if (m->items[i].label)
 		{
 			if(!m->items[i].enabled)
-				printf("\x1b[37m");	//gray
+				printf("\x1b[90m");	//gray
 
 			if (m->items[i].directory)
 				printf(" [%.26s]\n", m->items[i].label);

@@ -402,7 +402,7 @@ void loadAstronaut() {
 	}
 	if (fileExists("sd:/astronaut"))
 	{
-		foundAstronautVersion = loadAstronaut("sd:/astronaut.bin", ASTRONAUT_INDEV);
+		foundAstronautVersion = loadAstronaut("sd:/astronaut.bin", ASTRONAUT_0_2_0);
 		if(foundAstronautVersion != INVALID)
 			return;
 
@@ -411,7 +411,7 @@ void loadAstronaut() {
 				   "Attempting to use the bundled one.");
 	}
 
-	foundAstronautVersion = loadAstronaut("nitro:/astronaut.bin", ASTRONAUT_0_1_0);
+	foundAstronautVersion = loadAstronaut("nitro:/astronaut.bin", ASTRONAUT_0_2_0);
 
 	if(foundAstronautVersion != INVALID)
 		return;
