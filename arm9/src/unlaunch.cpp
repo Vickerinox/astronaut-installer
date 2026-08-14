@@ -23,8 +23,8 @@ size_t astronautSize{};
 
 constexpr std::array knownAstronautHashes{
 	"0000000000000000000000000000000000000000"_sha1, //nightly release, any hash.
-	"99454e7a84adc702247d1f93d165c7195e127378"_sha1, //first private astronaut pre-release (INDEV)
-	"797183356a5fc2b6a8cbce04e313fac39e4a6125"_sha1, //first public astronaut release (0.1.0, unfortunately unreproducible)
+	"797183356a5fc2b6a8cbce04e313fac39e4a6125"_sha1, //first public astronaut release (0.1.0, unfortunately unreproducible), size 80880
+	"0000000000000000000000000000000000000000"_sha1, //release 0.2.0, size 89592
 };
 
 
@@ -35,7 +35,7 @@ bool isValidAstronautSize(size_t size)
 	if(installerVersion == ASTRONAUT_NIGHTLY) {
 		return size < sizeof(astronautBuffer)-520;
 	} else {
-		return size == 80880;
+		return size == 80880 || size == 89592;
 	}
 }
 
@@ -430,8 +430,8 @@ ASTRONAUT_VERSION loadAstronaut(std::string_view path, ASTRONAUT_VERSION assumpt
 
 std::array astronautVersionStrings{
 	"NIGHTLY",
-	"INDEV",
 	"0.1.0",
+	"0.2.0",
 	"INVALID",
 };
 
