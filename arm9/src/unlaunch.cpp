@@ -24,7 +24,7 @@ size_t astronautSize{};
 constexpr std::array knownAstronautHashes{
 	"0000000000000000000000000000000000000000"_sha1, //nightly release, any hash.
 	"797183356a5fc2b6a8cbce04e313fac39e4a6125"_sha1, //first public astronaut release (0.1.0, unfortunately unreproducible), size 80880
-	"0000000000000000000000000000000000000000"_sha1, //release 0.2.0, size 89592
+	"5433a837bd0cec79dfa636437e92ac5b37f1d6c5"_sha1, //release 0.2.0, size 89592
 };
 
 
