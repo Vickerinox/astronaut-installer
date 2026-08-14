@@ -22,7 +22,6 @@ TWL_CODE void i2cIRQHandlerCustom()
 }
 void vblankHandler() {
 	inputGetAndSend();
-	//Wifi_Update();
 }
 
 int main()
@@ -30,7 +29,6 @@ int main()
 	irqInit();
 	irqSetAUX(IRQ_I2C, i2cIRQHandlerCustom);
 	fifoInit();
-	//installWifiFIFO();
 	initClockIRQTimer(3);
 
 	struct {
