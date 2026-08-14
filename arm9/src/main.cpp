@@ -203,6 +203,7 @@ static int mainMenu(const consoleInfo& info, int cursor)
 
 	while (!programEnd)
 	{
+		rand();
 		swiWaitForVBlank();
 		show_battery();
 		scanKeys();
