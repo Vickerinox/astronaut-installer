@@ -20,6 +20,7 @@
 #include "unlaunch.h"
 #include "nocashFooter.h"
 #include "update.h"
+#include "buttons.h"
 
 using namespace std::string_view_literals;
 
@@ -76,13 +77,57 @@ enum {
 	
 };
 
+u16* batteries[20];
+
+static int timer = 0; 
+void show_battery() {  
+	u32 value = getBatteryLevel();
+	unsigned int battery_level = value & BATTERY_LEVEL_MASK;
+	bool charger_connected = value & BATTERY_CHARGER_CONNECTED;
+	timer++;
+	u16* ptr = charger_connected ? batteries[16+((timer&48) >> 4)] : batteries[battery_level];
+    oamSet(&oamSub, 0,
+            2, 173, // X, Y
+            0, // Priority
+            0, // Palette index
+            SpriteSize_32x16, SpriteColorFormat_16Color, // Size, format
+            ptr,  // Graphics offset
+            -1, // Affine index
+            false, // Double size
+            false, // Hide
+            false, false, // H flip, V flip
+            false); // Mosaic
+	oamUpdate(&oamSub);
+}
+
+void copy_subsprite(void *dst, int sprite)
+{
+    int frame_size = 32 * 16 / 2;
+    int offset = frame_size * sprite;
+    uint8_t *base = (uint8_t *)buttonsTiles;
+
+    memcpy(dst, base + offset, frame_size);
+}
+static void initSprites() {
+	oamInit(&oamSub, SpriteMapping_1D_128, false); 
+	for (unsigned int i = 0; i < sizeof(batteries)/sizeof(u16*); i++)
+    {
+        batteries[i] = oamAllocateGfx(&oamSub, SpriteSize_32x16,
+                                         SpriteColorFormat_16Color);
+        copy_subsprite(batteries[i], i);
+    }
+    memcpy(SPRITE_PALETTE_SUB, buttonsPal, buttonsPalLen);
+}
 static void setupScreens()
 {
 	videoSetMode(MODE_5_2D);
 	videoSetModeSub(MODE_5_2D);
 
 	vramSetBankA(VRAM_A_MAIN_BG);
+	vramSetBankD(VRAM_D_SUB_SPRITE);
 	vramSetBankC(VRAM_C_SUB_BG);
+
+	initSprites();
 
 	consoleInit(&topScreen, 1, BgType_Text4bpp, BgSize_T_256x256, 14, 0, true, true);
 	consoleEnhancedColorHandler(NULL);
@@ -158,6 +203,7 @@ static int mainMenu(const consoleInfo& info, int cursor)
 	while (!programEnd)
 	{
 		swiWaitForVBlank();
+		show_battery();
 		scanKeys();
 
 		if (moveCursor(m))
@@ -200,6 +246,8 @@ static int mainMenu(const consoleInfo& info, int cursor)
 
 	return result;
 }
+
+
 
 void setup() {
 	keysSetRepeat(25, 5);
@@ -770,7 +818,6 @@ void doMainMenu(consoleInfo& info) {
 }
 int main(int argc, char **argv)
 {
-	
 	setup();
 	checkStage2Supported();
 	setupNitrofs();
