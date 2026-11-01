@@ -27,7 +27,7 @@ endif
 
 include $(BLOCKSDS_VERSION_FILE)
 
-$(eval $(call error_if_blocksds_version_less_than, 1, 23, 0))
+$(eval $(call error_if_blocksds_version_less_than, 1, 22, 0))
 # Source code paths
 # -----------------
 
