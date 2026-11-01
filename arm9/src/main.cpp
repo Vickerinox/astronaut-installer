@@ -781,7 +781,6 @@ void doUpdate() {
 
 void doMainMenu(consoleInfo& info) {
 	int cursor = 0;
-	installOptions.customBackground = {};
 	while(!programEnd)
 	{
 		cursor = mainMenu(info, cursor);
