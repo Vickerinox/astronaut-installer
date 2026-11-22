@@ -25,6 +25,7 @@ constexpr std::array knownAstronautHashes{
 	"0000000000000000000000000000000000000000"_sha1, //nightly release, any hash.
 	"797183356a5fc2b6a8cbce04e313fac39e4a6125"_sha1, //first public astronaut release (0.1.0, unfortunately unreproducible), size 80880
 	"5433a837bd0cec79dfa636437e92ac5b37f1d6c5"_sha1, //release 0.2.0, size 89592
+	"001bc827db024b75deef8ea816d3b24140bdf685"_sha1, //release 0.3.0, size 89592
 };
 
 
@@ -432,6 +433,7 @@ std::array astronautVersionStrings{
 	"NIGHTLY",
 	"0.1.0",
 	"0.2.0",
+	"0.3.0",
 	"INVALID",
 };
 
